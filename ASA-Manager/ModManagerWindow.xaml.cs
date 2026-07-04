@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -16,6 +17,9 @@ namespace ARKServerCreationTool
     {
         private readonly ASCTServerConfig server;
         private readonly ObservableCollection<ModEntry> modItems;
+
+        // In-process buffer for copy/paste between servers (persists across window instances).
+        private static List<ModEntry> copyBuffer = new();
 
         public ModManagerWindow(ASCTServerConfig server)
         {
@@ -52,6 +56,41 @@ namespace ARKServerCreationTool
                 txt_addId.Clear();
             }
             else MessageBox.Show("Enter a numeric CurseForge Project ID.");
+        }
+
+        private void AddEntries(IEnumerable<ModEntry> entries)
+        {
+            int added = 0;
+            foreach (var src in entries)
+            {
+                if (modItems.Any(m => m.ProjectId == src.ProjectId)) continue;
+                var entry = new ModEntry(src.ProjectId, src.Enabled);
+                entry.PropertyChanged += Mod_PropertyChanged;
+                modItems.Add(entry);
+                added++;
+            }
+            MessageBox.Show($"Added {added} mod(s).");
+        }
+
+        private void btn_bulkAdd_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new BulkAddModsWindow { Owner = this };
+            if (dlg.ShowDialog() == true)
+                AddEntries(dlg.ParsedIds.Select(id => new ModEntry(id)));
+        }
+
+        private void btn_copyMods_Click(object sender, RoutedEventArgs e)
+        {
+            var source = lst_mods.SelectedItems.Count > 0
+                ? lst_mods.SelectedItems.Cast<ModEntry>()
+                : (IEnumerable<ModEntry>)modItems;
+            copyBuffer = source.Select(m => new ModEntry(m.ProjectId, m.Enabled)).ToList();
+            MessageBox.Show($"Copied {copyBuffer.Count} mod(s) to the buffer.");
+        }
+
+        private void btn_pasteMods_Click(object sender, RoutedEventArgs e)
+        {
+            AddEntries(copyBuffer);
         }
 
         private void btn_up_Click(object sender, RoutedEventArgs e)
