@@ -81,6 +81,30 @@ namespace ARKServerCreationTool
             return Servers.Select(s => s.ID).DefaultIfEmpty(-1).Max() + 1;
         }
 
+        public ushort NextAvailableRconPort()
+        {
+            ushort start = StartingRCONPort;
+            var used = new HashSet<ushort>(Servers.Select(s => s.RconPort).Where(p => p != 0));
+            for (ushort p = start; p < ushort.MaxValue; p += PortIncrement)
+            {
+                // avoid colliding with any assigned rcon port or any game port
+                if (!used.Contains(p) && Servers.All(s => s.GamePort != p)) return p;
+            }
+            return start;
+        }
+
+        /// <summary>Backfill RCON port + admin password for servers loaded from a pre-RCON config.</summary>
+        public void EnsureServerRconDefaults()
+        {
+            bool changed = false;
+            foreach (var s in Servers)
+            {
+                if (s.RconPort == 0) { s.RconPort = NextAvailableRconPort(); changed = true; }
+                if (string.IsNullOrEmpty(s.ServerAdminPassword)) { s.ServerAdminPassword = ASCTServerConfig.GenerateAdminPassword(); changed = true; }
+            }
+            if (changed) Save();
+        }
+
         public void Save()
         {
             SaveConfig(this);
@@ -100,6 +124,7 @@ namespace ARKServerCreationTool
                 string json = File.ReadAllText(configName);
 
                 returnConfig = JsonConvert.DeserializeObject<ASCTGlobalConfig>(json);
+                returnConfig?.EnsureServerRconDefaults();
             }
 
             return returnConfig;
@@ -154,6 +179,20 @@ namespace ARKServerCreationTool
 
         public string ActiveEvent { get; set; } = string.Empty;
 
+        // RCON: enabled per server; ServerAdminPassword doubles as the RCON password. Injected via launch-arg ?-options.
+        public bool RconEnabled { get; set; } = true;
+        public ushort RconPort { get; set; }
+        public string ServerAdminPassword { get; set; } = string.Empty;
+
+        public static string GenerateAdminPassword()
+        {
+            const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+            var bytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(20);
+            var sb = new System.Text.StringBuilder(20);
+            foreach (var b in bytes) sb.Append(chars[b % chars.Length]);
+            return sb.ToString();
+        }
+
         /// <summary>Ordered mod load-order list. The order of this list is the launch order.</summary>
         public List<ModEntry> Mods { get; set; } = new List<ModEntry>();
 
@@ -187,7 +226,7 @@ namespace ARKServerCreationTool
                 else
                 {
                     return
-                        $"\"{Map}{MultihomeArgs}\" \"-port={GamePort}\" -WinLiveMaxPlayers={Slots}{ModArgs}{ClusterArgs}{CrossplayArgs}{NoBattleyeArgs}{ActiveEventArgs} -log -servergamelog"
+                        $"\"{Map}{MapQueryOptions}\" \"-port={GamePort}\" -WinLiveMaxPlayers={Slots}{ModArgs}{ClusterArgs}{CrossplayArgs}{NoBattleyeArgs}{ActiveEventArgs} -log -servergamelog"
                             .Trim();
                 }
             }
@@ -239,6 +278,25 @@ namespace ARKServerCreationTool
                 {
                     return string.Empty;
                 }
+            }
+        }
+
+        [JsonIgnore]
+        public string MapQueryOptions
+        {
+            get
+            {
+                var opts = new List<string>();
+                if (UseMultihome && IPAddress != string.Empty) opts.Add($"MultiHome={IPAddress}");
+                if (RconEnabled)
+                {
+                    opts.Add("RCONEnabled=True");
+                    opts.Add($"RCONPort={RconPort}");
+                }
+                // ServerAdminPassword MUST be the last ?-option (parse-swallow guard).
+                if (RconEnabled && !string.IsNullOrEmpty(ServerAdminPassword))
+                    opts.Add($"ServerAdminPassword={ServerAdminPassword}");
+                return opts.Count == 0 ? string.Empty : "?" + string.Join("?", opts);
             }
         }
 

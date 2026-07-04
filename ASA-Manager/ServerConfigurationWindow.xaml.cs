@@ -38,6 +38,8 @@ namespace ARKServerCreationTool
                 newServer = true;
                 targetServer = new ASCTServerConfig(config.NextAvailableID(), config.NextAvailablePort());
                 targetServer.GameDirectory = Path.Combine(config.ServersInstallationPath, targetServer.Name);
+                targetServer.RconPort = config.NextAvailableRconPort();
+                targetServer.ServerAdminPassword = ASCTServerConfig.GenerateAdminPassword();
             }
             else
             {
