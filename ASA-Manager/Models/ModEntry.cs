@@ -16,6 +16,16 @@ namespace ARKServerCreationTool.Models
             set { if (_enabled != value) { _enabled = value; OnPropertyChanged(); } }
         }
 
+        [Newtonsoft.Json.JsonIgnore] private string? _displayName;
+
+        /// <summary>Resolved display name (falls back to "#id"); populated from the metadata cache, not persisted.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public string DisplayName
+        {
+            get => string.IsNullOrEmpty(_displayName) ? $"#{ProjectId}" : _displayName!;
+            set { _displayName = value; OnPropertyChanged(); }
+        }
+
         public ModEntry() { }
 
         public ModEntry(ulong projectId, bool enabled = true)

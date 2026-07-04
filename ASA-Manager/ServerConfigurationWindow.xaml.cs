@@ -64,24 +64,36 @@ namespace ARKServerCreationTool
             chk_automaticStart.IsChecked = targetServer.StartAutomatically;
             lbl_allowAutoLaunchDisabled.Visibility = (chk_automaticStart.IsChecked.Value == true && ASCTGlobalConfig.Instance.AllowAutomaticStart == false) ? Visibility.Visible : Visibility.Collapsed;
 
+            txt_rconPort.Text = targetServer.RconPort.ToString();
+            txt_adminPassword.Text = targetServer.ServerAdminPassword;
+
             UpdateClusterCombo();
             UpdateMapCombo();
+            UpdateModButton();
             UpdateCommandLineBox();
-            UpdateModList();
 
             windowReady = true;
         }
 
-        private void UpdateModList() 
+        private void UpdateModButton()
         {
-            lst_modIds.Items.Clear();
+            btn_manageMods.Content = $"Manage Mods ({targetServer.Mods.Count})…";
+        }
 
-            foreach (var mod in targetServer.Mods)
+        private void btn_manageMods_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new ModManagerWindow(targetServer) { Owner = this };
+            if (dialog.ShowDialog() == true)
             {
-                lst_modIds.Items.Add(mod.ProjectId);
+                UpdateModButton();
+                UpdateCommandLineBox();
             }
+        }
 
-            lst_modIds.Items.Refresh();
+        private void btn_regenPassword_Click(object sender, RoutedEventArgs e)
+        {
+            txt_adminPassword.Text = ASCTServerConfig.GenerateAdminPassword();
+            UpdateCommandLineBox();
         }
 
         private void UpdateClusterCombo()
@@ -192,7 +204,9 @@ namespace ARKServerCreationTool
             serv.useCustomLaunchArgs = chkbx_overrideCommandline.IsChecked.Value;
             serv.GamePort = ushort.Parse(txt_gamePort.Text);
             serv.Slots = ushort.Parse(txt_slots.Text);
-            serv.Mods = lst_modIds.Items.Cast<ulong>().Select(id => new ModEntry(id)).ToList();
+            serv.Mods = targetServer.Mods;
+            if (ushort.TryParse(txt_rconPort.Text, out var rconPort)) serv.RconPort = rconPort;
+            serv.ServerAdminPassword = txt_adminPassword.Text.Trim();
             serv.AllowCrossplay = chk_crossplay.IsChecked.Value;
             serv.NoBattleye = chk_noBattleye.IsChecked.Value;
             serv.UseMultihome = chk_useMultiHome.IsChecked.Value;
@@ -291,37 +305,6 @@ namespace ARKServerCreationTool
                     txt_gameDir.Text = dialog.SelectedPath;
                 }
             }
-        }
-
-        private void btn_addMod_Click(object sender, RoutedEventArgs e)
-        {
-            ulong modID = 0;
-
-            if (ulong.TryParse(txt_addMod.Text, out modID))
-            {
-                if (!targetServer.Mods.Any(m => m.ProjectId == modID)) targetServer.Mods.Add(new ModEntry(modID));
-                UpdateModList();
-                txt_addMod.Clear();
-            }
-            else
-            {
-                MessageBox.Show("Entered value is invalid");
-            }
-            UpdateCommandLineBox();
-        }
-
-        private void lst_modIds_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            btn_removeMod.IsEnabled = lst_modIds.SelectedItems.Count > 0;
-        }
-
-        private void btn_removeMod_Click(object sender, RoutedEventArgs e)
-        {
-            var toRemove = lst_modIds.SelectedItems.Cast<ulong>().ToHashSet();
-            targetServer.Mods.RemoveAll(m => toRemove.Contains(m.ProjectId));
-            UpdateModList();
-            UpdateCommandLineBox();
-
         }
 
         private void chk_crossplay_Checked(object sender, RoutedEventArgs e)
