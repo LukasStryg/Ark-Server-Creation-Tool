@@ -17,6 +17,8 @@ using System.Windows.Threading;
 using static ARKServerCreationTool.ASCTTools;
 using System.Diagnostics.Metrics;
 using System.Windows.Media.Animation;
+using ARKServerCreationTool.Services.Rcon;
+using ARKServerCreationTool.Services.Servers;
 
 namespace ARKServerCreationTool
 {
@@ -51,6 +53,8 @@ namespace ARKServerCreationTool
 
             InitializeComponent();
 
+            controlProgress = new Progress<string>(msg => lbl_controlStatus.Text = msg);
+
             lbl_serverName.Content = $"{targetServer.Name}";
             lbl_serverCluster.Content = $"{(targetServer.ClusterKey != string.Empty ? targetServer.ClusterKey : "Not Clustered")}";
 
@@ -58,6 +62,8 @@ namespace ARKServerCreationTool
         }
 
         RunButtonStatus buttonStatus = RunButtonStatus.Unknown;
+
+        private readonly Progress<string> controlProgress;
 
         private void UpdateStatus()
         {
@@ -174,6 +180,8 @@ namespace ARKServerCreationTool
             else
             {
                 targetServer.ProcessManager.Start();
+                targetServer.SnapshotRunningModVersions(AppServices.MetadataCache);
+                config.Save();
             }
 
             UpdateStatus();
@@ -215,6 +223,53 @@ namespace ARKServerCreationTool
         private void chk_entireCluster_Click(object sender, RoutedEventArgs e)
         {
             UpdateStatus();
+        }
+
+        private ServerControlService BuildControlService()
+        {
+            var adapter = new GameProcessControllerAdapter(processManager);
+            return new ServerControlService(
+                () => new RconClient("127.0.0.1", targetServer.RconPort),
+                adapter,
+                targetServer.ServerAdminPassword);
+        }
+
+        private async void btn_gracefulStop_Click(object sender, RoutedEventArgs e)
+        {
+            btn_gracefulStop.IsEnabled = false;
+            try
+            {
+                var result = await BuildControlService().GracefulStopAsync(TimeSpan.FromSeconds(60), controlProgress);
+                lbl_controlStatus.Text = $"Stop result: {result}";
+            }
+            finally { btn_gracefulStop.IsEnabled = true; UpdateStatus(); }
+        }
+
+        private async void btn_restartApply_Click(object sender, RoutedEventArgs e)
+        {
+            btn_restartApply.IsEnabled = false;
+            try
+            {
+                var client = AppServices.CurseForge();
+                if (client.HasKey)
+                {
+                    try
+                    {
+                        await AppServices.MetadataCache.RefreshAsync(targetServer.Mods.Select(m => m.ProjectId), client, DateTimeOffset.UtcNow);
+                        AppServices.MetadataCache.Save();
+                    }
+                    catch (Exception ex) { lbl_controlStatus.Text = $"Metadata refresh failed: {ex.Message}"; }
+                }
+
+                bool ok = await BuildControlService().RestartToApplyAsync(TimeSpan.FromSeconds(60), controlProgress);
+                if (ok)
+                {
+                    targetServer.SnapshotRunningModVersions(AppServices.MetadataCache);
+                    config.Save();
+                }
+                lbl_controlStatus.Text = ok ? "Restarted; mods re-download on boot." : "Restart failed; check the server.";
+            }
+            finally { btn_restartApply.IsEnabled = true; UpdateStatus(); }
         }
     }
 }
