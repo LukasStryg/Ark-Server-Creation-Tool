@@ -45,5 +45,25 @@ namespace ARKServerCreationTool.Services.CurseForge
             var parsed = JsonConvert.DeserializeObject<CfListResponse<CfMod>>(json);
             return parsed?.Data ?? new List<CfMod>();
         }
+
+        /// <summary>Checks whether the configured API key is accepted by CurseForge (GET /v1/games).</summary>
+        public async Task<(bool ok, string message)> ValidateKeyAsync(CancellationToken ct = default)
+        {
+            if (!HasKey) return (false, "No API key set.");
+
+            using var req = new HttpRequestMessage(HttpMethod.Get, $"{BaseUrl}/v1/games");
+            req.Headers.Add("x-api-key", _apiKey);
+            req.Headers.Add("Accept", "application/json");
+            try
+            {
+                using var resp = await _http.SendAsync(req, ct);
+                if (resp.StatusCode == System.Net.HttpStatusCode.Forbidden || resp.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                    return (false, $"Key rejected by CurseForge ({(int)resp.StatusCode}). Double-check the key.");
+                if (!resp.IsSuccessStatusCode)
+                    return (false, $"Unexpected response from CurseForge: {(int)resp.StatusCode}.");
+                return (true, "API key is valid.");
+            }
+            catch (System.Exception ex) { return (false, $"Could not reach CurseForge: {ex.Message}"); }
+        }
     }
 }

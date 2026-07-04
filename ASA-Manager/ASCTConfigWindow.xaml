@@ -25,6 +25,7 @@
         <CheckBox x:Name="chk_AllowAutoLaunch" Content="Allow servers to be started automatically when ASCT is launched" HorizontalAlignment="Left" Margin="126,192,0,0" VerticalAlignment="Top"/>
         <CheckBox x:Name="chk_PromptStartAllServers" Content="Prompt start all servers in cluster" HorizontalAlignment="Left" Margin="126,212,0,0" VerticalAlignment="Top"/>
         <Label Content="CurseForge API Key" HorizontalAlignment="Left" Margin="10,243,0,0" VerticalAlignment="Top"/>
-        <TextBox x:Name="txt_curseforgeKey" ToolTip="Optional. Enables mod name resolution and update checks. Get one at console.curseforge.com (third-party services must apply)." Margin="126,243,10,0" VerticalAlignment="Top" Height="26" VerticalContentAlignment="Center"/>
+        <TextBox x:Name="txt_curseforgeKey" ToolTip="Optional. Enables mod name resolution and update checks. Get one at console.curseforge.com (third-party services must apply)." Margin="126,243,90,0" VerticalAlignment="Top" Height="26" VerticalContentAlignment="Center"/>
+        <Button x:Name="btn_verifyKey" Content="Verify" Margin="0,243,10,0" HorizontalAlignment="Right" VerticalAlignment="Top" Width="75" Height="26" Click="btn_verifyKey_Click"/>
     </Grid>
 </Window>

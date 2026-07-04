@@ -92,5 +92,37 @@ namespace ARKServerCreationTool.Tests
             Assert.True(ModUpdateChecker.HasNewerFile(mod, 1));
             Assert.False(ModUpdateChecker.HasNewerFile(mod, 2));
         }
+
+        private sealed class StatusHandler : HttpMessageHandler
+        {
+            private readonly HttpStatusCode _code;
+            public StatusHandler(HttpStatusCode code) { _code = code; }
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+                => Task.FromResult(new HttpResponseMessage(_code) { Content = new StringContent("{\"data\":[]}") });
+        }
+
+        [Fact]
+        public async Task ValidateKeyAsync_ok_on_200()
+        {
+            var client = new CurseForgeClient(new HttpClient(new StatusHandler(HttpStatusCode.OK)), "k");
+            var (ok, _) = await client.ValidateKeyAsync();
+            Assert.True(ok);
+        }
+
+        [Fact]
+        public async Task ValidateKeyAsync_fails_on_403()
+        {
+            var client = new CurseForgeClient(new HttpClient(new StatusHandler(HttpStatusCode.Forbidden)), "k");
+            var (ok, _) = await client.ValidateKeyAsync();
+            Assert.False(ok);
+        }
+
+        [Fact]
+        public async Task ValidateKeyAsync_fails_without_key()
+        {
+            var client = new CurseForgeClient(new HttpClient(new StatusHandler(HttpStatusCode.OK)), null);
+            var (ok, _) = await client.ValidateKeyAsync();
+            Assert.False(ok);
+        }
     }
 }

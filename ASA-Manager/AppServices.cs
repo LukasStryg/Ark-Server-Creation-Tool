@@ -9,5 +9,9 @@ namespace ARKServerCreationTool
 
         public static Services.CurseForge.CurseForgeClient CurseForge()
             => new Services.CurseForge.CurseForgeClient(http, ASCTGlobalConfig.Instance.CurseForgeApiKey);
+
+        /// <summary>Client bound to a specific key (e.g. to verify a key before saving it).</summary>
+        public static Services.CurseForge.CurseForgeClient CurseForge(string apiKey)
+            => new Services.CurseForge.CurseForgeClient(http, apiKey);
     }
 }
