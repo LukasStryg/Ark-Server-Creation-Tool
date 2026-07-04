@@ -13,6 +13,7 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using ARKServerCreationTool.Models;
 
 namespace ARKServerCreationTool
 {
@@ -73,9 +74,9 @@ namespace ARKServerCreationTool
         {
             lst_modIds.Items.Clear();
 
-            foreach (var item in targetServer.modIDs)
+            foreach (var mod in targetServer.Mods)
             {
-                lst_modIds.Items.Add(item);
+                lst_modIds.Items.Add(mod.ProjectId);
             }
 
             lst_modIds.Items.Refresh();
@@ -189,7 +190,7 @@ namespace ARKServerCreationTool
             serv.useCustomLaunchArgs = chkbx_overrideCommandline.IsChecked.Value;
             serv.GamePort = ushort.Parse(txt_gamePort.Text);
             serv.Slots = ushort.Parse(txt_slots.Text);
-            serv.modIDs = lst_modIds.Items.Cast<ulong>().ToHashSet();
+            serv.Mods = lst_modIds.Items.Cast<ulong>().Select(id => new ModEntry(id)).ToList();
             serv.AllowCrossplay = chk_crossplay.IsChecked.Value;
             serv.NoBattleye = chk_noBattleye.IsChecked.Value;
             serv.UseMultihome = chk_useMultiHome.IsChecked.Value;
@@ -296,7 +297,7 @@ namespace ARKServerCreationTool
 
             if (ulong.TryParse(txt_addMod.Text, out modID))
             {
-                targetServer.modIDs.Add(modID);
+                if (!targetServer.Mods.Any(m => m.ProjectId == modID)) targetServer.Mods.Add(new ModEntry(modID));
                 UpdateModList();
                 txt_addMod.Clear();
             }
@@ -314,7 +315,8 @@ namespace ARKServerCreationTool
 
         private void btn_removeMod_Click(object sender, RoutedEventArgs e)
         {
-            targetServer.modIDs.RemoveWhere(x => lst_modIds.SelectedItems.Cast<ulong>().Contains(x));
+            var toRemove = lst_modIds.SelectedItems.Cast<ulong>().ToHashSet();
+            targetServer.Mods.RemoveAll(m => toRemove.Contains(m.ProjectId));
             UpdateModList();
             UpdateCommandLineBox();
 

@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization;
+using ARKServerCreationTool.Models;
 
 namespace ARKServerCreationTool
 {
@@ -152,7 +154,26 @@ namespace ARKServerCreationTool
 
         public string ActiveEvent { get; set; } = string.Empty;
 
-        public HashSet<ulong> modIDs = new HashSet<ulong>();
+        /// <summary>Ordered mod load-order list. The order of this list is the launch order.</summary>
+        public List<ModEntry> Mods { get; set; } = new List<ModEntry>();
+
+        /// <summary>Legacy unordered mod ids from pre-overhaul configs; migrated into <see cref="Mods"/> on load. Not written back once migrated.</summary>
+        [JsonProperty("modIDs", NullValueHandling = NullValueHandling.Ignore)]
+        public HashSet<ulong>? LegacyModIDs { get; set; }
+
+        [OnDeserialized]
+        internal void MigrateLegacyMods(StreamingContext context)
+        {
+            if (Mods.Count == 0 && LegacyModIDs != null && LegacyModIDs.Count > 0)
+            {
+                var seen = new HashSet<ulong>();
+                foreach (var id in LegacyModIDs)
+                {
+                    if (seen.Add(id)) Mods.Add(new ModEntry(id));
+                }
+            }
+            LegacyModIDs = null; // drop from future saves
+        }
 
         [JsonIgnore]
         public string LaunchArguments
@@ -183,12 +204,9 @@ namespace ARKServerCreationTool
         {
             get
             {
-                if (modIDs.Count <= 0)
-                {
-                    return string.Empty;
-                }
-
-                return $" \"-mods={string.Join(",", modIDs)}\"";
+                var enabled = Mods.Where(m => m.Enabled).Select(m => m.ProjectId).ToList();
+                if (enabled.Count == 0) return string.Empty;
+                return $" \"-mods={string.Join(",", enabled)}\"";
             }
         }
 
