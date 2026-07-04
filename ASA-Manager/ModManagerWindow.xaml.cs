@@ -9,6 +9,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using ARKServerCreationTool.Models;
 using ARKServerCreationTool.Services.Common;
+using ARKServerCreationTool.Services.CurseForge;
 
 namespace ARKServerCreationTool
 {
@@ -33,6 +34,7 @@ namespace ARKServerCreationTool
 
             lbl_header.Text = $"Mods for {server.Name}";
             UpdatePreview();
+            RefreshModNames(forceApi: false);
         }
 
         private void Mod_PropertyChanged(object? sender, PropertyChangedEventArgs e) => UpdatePreview();
@@ -102,6 +104,76 @@ namespace ARKServerCreationTool
             }
             var mods = modItems.Select(m => new ModEntry(m.ProjectId, m.Enabled)).ToList();
             new CopyModsToServersWindow(server, mods) { Owner = this }.ShowDialog();
+        }
+
+        private async void RefreshModNames(bool forceApi)
+        {
+            ApplyCachedNames();
+            var ids = modItems.Select(m => m.ProjectId).ToList();
+            if (ids.Count == 0) { lbl_modStatus.Text = ""; return; }
+
+            var client = AppServices.CurseForge();
+            if (!client.HasKey)
+            {
+                lbl_modStatus.Text = "Add a CurseForge API key (Settings) to show mod names and check updates.";
+                return;
+            }
+
+            var cache = AppServices.MetadataCache;
+            var now = System.DateTimeOffset.UtcNow;
+            var stale = ids.Where(id => forceApi || cache.IsStale(id, System.TimeSpan.FromHours(24), now)).ToList();
+            if (stale.Count == 0) { lbl_modStatus.Text = ""; return; }
+
+            lbl_modStatus.Text = "Resolving mod names from CurseForge…";
+            try
+            {
+                await cache.RefreshAsync(stale, client, now);
+                cache.Save();
+                ApplyCachedNames();
+                lbl_modStatus.Text = "";
+            }
+            catch (System.Exception ex) { lbl_modStatus.Text = $"CurseForge: {ex.Message}"; }
+        }
+
+        private void ApplyCachedNames()
+        {
+            foreach (var m in modItems)
+                if (AppServices.MetadataCache.TryGet(m.ProjectId, out var meta) && !string.IsNullOrEmpty(meta.Name))
+                    m.DisplayName = meta.Name!;
+        }
+
+        private void btn_refreshNames_Click(object sender, RoutedEventArgs e) => RefreshModNames(forceApi: true);
+
+        private async void btn_checkUpdates_Click(object sender, RoutedEventArgs e)
+        {
+            var client = AppServices.CurseForge();
+            if (!client.HasKey) { MessageBox.Show("Set a CurseForge API key in Settings to check for updates."); return; }
+
+            var ids = modItems.Select(m => m.ProjectId).ToList();
+            if (ids.Count == 0) return;
+
+            if (server.RunningModVersions.Count == 0)
+            {
+                MessageBox.Show("No baseline yet. Start this server once so the tool records which mod versions are running; then update checks will be meaningful.");
+                return;
+            }
+
+            lbl_modStatus.Text = "Checking CurseForge for updates…";
+            try
+            {
+                var mods = await client.GetModsAsync(ids);
+                var snapshot = server.RunningModVersions;
+                var outdated = mods
+                    .Where(mod => ModUpdateChecker.HasNewerFile(mod, snapshot.TryGetValue((ulong)mod.Id, out var v) ? v : (long?)null))
+                    .Select(mod => mod.Name)
+                    .ToList();
+                lbl_modStatus.Text = "";
+                MessageBox.Show(outdated.Count == 0
+                    ? "All mods are up to date (relative to this server's last start)."
+                    : "Updates available for:\n - " + string.Join("\n - ", outdated) +
+                      "\n\nRestart the server (Server window → Restart to apply) to pull them.");
+            }
+            catch (System.Exception ex) { lbl_modStatus.Text = ""; MessageBox.Show($"Update check failed: {ex.Message}"); }
         }
 
         private void btn_up_Click(object sender, RoutedEventArgs e)

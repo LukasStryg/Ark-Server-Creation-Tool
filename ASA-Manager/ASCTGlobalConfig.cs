@@ -68,6 +68,8 @@ namespace ARKServerCreationTool
 
         public bool validateUpdates = true;
 
+        public string CurseForgeApiKey { get; set; } = string.Empty;
+
         public List<ASCTServerConfig> Servers = new List<ASCTServerConfig>();
 
         public ushort NextAvailablePort()
@@ -191,6 +193,18 @@ namespace ARKServerCreationTool
             var sb = new System.Text.StringBuilder(20);
             foreach (var b in bytes) sb.Append(chars[b % chars.Length]);
             return sb.ToString();
+        }
+
+        /// <summary>Per-mod newest file id the server booted with (set on successful start; used for update checks).</summary>
+        public Dictionary<ulong, long> RunningModVersions { get; set; } = new();
+
+        /// <summary>Records the newest known file id per mod as the "running" version (call after a successful start).</summary>
+        public void SnapshotRunningModVersions(Services.CurseForge.ModMetadataCache cache)
+        {
+            RunningModVersions = new Dictionary<ulong, long>();
+            foreach (var m in Mods)
+                if (cache.TryGet(m.ProjectId, out var meta) && meta.LatestFileId.HasValue)
+                    RunningModVersions[m.ProjectId] = meta.LatestFileId.Value;
         }
 
         /// <summary>Ordered mod load-order list. The order of this list is the launch order.</summary>

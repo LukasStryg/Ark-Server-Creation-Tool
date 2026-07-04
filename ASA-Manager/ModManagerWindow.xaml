@@ -24,6 +24,8 @@
             <Button x:Name="btn_copyMods" Content="Copy" Height="24" Margin="8,0,0,0" Click="btn_copyMods_Click"/>
             <Button x:Name="btn_pasteMods" Content="Paste" Height="24" Margin="4,0,0,0" Click="btn_pasteMods_Click"/>
             <Button x:Name="btn_copyToServers" Content="Copy to servers…" Height="24" Margin="12,0,0,0" Click="btn_copyToServers_Click"/>
+            <Button x:Name="btn_refreshNames" Content="Refresh names" Height="24" Margin="12,0,0,0" Click="btn_refreshNames_Click"/>
+            <Button x:Name="btn_checkUpdates" Content="Check for updates" Height="24" Margin="4,0,0,0" Click="btn_checkUpdates_Click"/>
         </WrapPanel>
 
         <!-- Mod list + reorder/remove buttons -->

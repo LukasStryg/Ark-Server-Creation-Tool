@@ -35,6 +35,7 @@ namespace ARKServerCreationTool
             chk_AllowAutoLaunch.IsChecked = ASCTGlobalConfig.Instance.AllowAutomaticStart;
             chk_PromptStartAllServers.IsChecked = ASCTGlobalConfig.Instance.PromptStartAllServersInCluster;
             txt_clusterDir.Text = ASCTGlobalConfig.Instance.GlobalClusterDir;
+            txt_curseforgeKey.Text = ASCTGlobalConfig.Instance.CurseForgeApiKey;
 
             this.firstLaunch = firstLaunch;
         }
@@ -52,6 +53,7 @@ namespace ARKServerCreationTool
             ASCTGlobalConfig.Instance.GlobalClusterDir = txt_clusterDir.Text;
             ASCTGlobalConfig.Instance.AllowAutomaticStart = chk_AllowAutoLaunch.IsChecked.Value;
             ASCTGlobalConfig.Instance.PromptStartAllServersInCluster = chk_PromptStartAllServers.IsChecked.Value;
+            ASCTGlobalConfig.Instance.CurseForgeApiKey = txt_curseforgeKey.Text.Trim();
             ASCTGlobalConfig.Instance.Save();
 
             ASCTTools.FindOrCreateWindow<ServerList>();
