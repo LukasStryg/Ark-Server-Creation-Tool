@@ -23,6 +23,12 @@
 
 ---
 
+## Execution deviations (agreed during execution)
+
+- **RconClient** uses async, cancellable `ReadExactlyAsync` reads (not blocking sync reads) so a hung server can't freeze callers. (Task 3)
+- **GameProcessControllerAdapter** is `internal` (not public) to match the internal `GameProcessManager`. (Task 6)
+- **Mod management lives in a dedicated per-server `ModManagerWindow`** (flexible layout), not inline in `ServerConfigurationWindow`. The config window gets a "Manage Mods (N)…" button + the editable **RCON port + admin password (with Regenerate)** field where the old inline list was. Tasks 8–10 add their mod features to `ModManagerWindow`. (Tasks 7–10)
+
 ## File structure
 
 ```
