@@ -93,6 +93,17 @@ namespace ARKServerCreationTool
             AddEntries(copyBuffer);
         }
 
+        private void btn_copyToServers_Click(object sender, RoutedEventArgs e)
+        {
+            if (ASCTGlobalConfig.Instance.Servers.Count(s => s.ID != server.ID) == 0)
+            {
+                MessageBox.Show("There are no other servers to copy to.");
+                return;
+            }
+            var mods = modItems.Select(m => new ModEntry(m.ProjectId, m.Enabled)).ToList();
+            new CopyModsToServersWindow(server, mods) { Owner = this }.ShowDialog();
+        }
+
         private void btn_up_Click(object sender, RoutedEventArgs e)
         {
             int i = lst_mods.SelectedIndex;
