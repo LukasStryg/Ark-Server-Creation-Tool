@@ -1,11 +1,11 @@
 namespace ARKServerCreationTool.Services.Servers
 {
-    /// <summary>Adapts the existing GameProcessManager to IServerProcessController.</summary>
-    public class GameProcessControllerAdapter : IServerProcessController
+    /// <summary>Adapts the existing (internal) GameProcessManager to IServerProcessController. Internal to match GameProcessManager's accessibility.</summary>
+    internal class GameProcessControllerAdapter : IServerProcessController
     {
         private readonly GameProcessManager _manager;
 
-        public GameProcessControllerAdapter(GameProcessManager manager) => _manager = manager;
+        internal GameProcessControllerAdapter(GameProcessManager manager) => _manager = manager;
 
         public bool IsRunning => _manager.IsRunning;
         public bool Start() => _manager.Start();
