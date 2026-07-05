@@ -147,6 +147,10 @@ namespace ARKServerCreationTool
         [JsonIgnore] public bool IsRunning => ProcessManager.IsRunning;
         [JsonIgnore] public string IsRunningToString => IsRunning ? "Running" : "Stopped";
 
+        /// <summary>Transient display status (e.g. "Stopping…") shown in the server list while an operation runs; null = show running/stopped.</summary>
+        [JsonIgnore] public string? TransientStatus { get; set; }
+        [JsonIgnore] public string StatusText => TransientStatus ?? IsRunningToString;
+
         public bool StartAutomatically { get; set; } = false;
 
         public int ID { get; private set; } //to be used as a primary key

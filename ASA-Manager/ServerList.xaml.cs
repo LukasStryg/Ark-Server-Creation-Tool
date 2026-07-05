@@ -205,7 +205,10 @@ namespace ARKServerCreationTool
                     }
                     else if (runButtonStatus == RunButtonStatus.Stop)
                     {
+                        foreach (var s in serversInCluster) s.TransientStatus = "Stopping…";
+                        UpdateList();
                         await Services.Servers.ServerControl.GracefulStopManyAsync(serversInCluster);
+                        foreach (var s in serversInCluster) s.TransientStatus = null;
                     }
 
                     launchOne = false;
@@ -220,7 +223,10 @@ namespace ARKServerCreationTool
                 }
                 else if (runButtonStatus == RunButtonStatus.Stop)
                 {
+                    selectedServer.TransientStatus = "Stopping…";
+                    UpdateList();
                     await Services.Servers.ServerControl.GracefulStopAsync(selectedServer);
+                    selectedServer.TransientStatus = null;
                 }
             }
 
@@ -239,7 +245,11 @@ namespace ARKServerCreationTool
 
         private async void btn_stopAll_Click(object sender, RoutedEventArgs e)
         {
+            var stopping = config.Servers.Where(s => s.IsRunning).ToList();
+            foreach (var s in stopping) s.TransientStatus = "Stopping…";
+            UpdateList();
             await Services.Servers.ServerControl.GracefulStopManyAsync(config.Servers);
+            foreach (var s in stopping) s.TransientStatus = null;
             UpdateList();
         }
 
