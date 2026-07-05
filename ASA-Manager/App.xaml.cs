@@ -13,7 +13,7 @@ namespace ARKServerCreationTool
     /// </summary>
     public partial class App : Application
     {
-        private void Application_Startup(object sender, StartupEventArgs e)
+        private async void Application_Startup(object sender, StartupEventArgs e)
         {
             bool newConfig = false;
 
@@ -50,12 +50,13 @@ namespace ARKServerCreationTool
 
                 list.Show();
 
+                AppServices.Coordinator.Start();
+
                 if (ASCTGlobalConfig.Instance.AllowAutomaticStart)
                 {
-                    foreach (ASCTServerConfig server in ASCTGlobalConfig.Instance.Servers.Where(s => s.StartAutomatically))
-                    {
-                        server.ProcessManager.Start();
-                    }
+                    var autoStart = ASCTGlobalConfig.Instance.Servers
+                        .Where(s => s.StartAutomatically && !s.ExcludeFromBulkStart);
+                    await AppServices.Coordinator.StartStaggeredAsync(autoStart);
                 }
             }
         }

@@ -48,6 +48,24 @@ namespace ARKServerCreationTool.Services.Reliability
         public void NotifyStopped(int serverId) { var s = StateFor(serverId); s.ShouldBeRunning = false; s.OperationInProgress = false; }
         public void MarkOperation(int serverId, bool inProgress) => StateFor(serverId).OperationInProgress = inProgress;
 
+        /// <summary>Starts the given servers sequentially, spaced by the configured stagger delay, honoring the exclude flag.</summary>
+        public async Task StartStaggeredAsync(IEnumerable<ASCTServerConfig> servers, Action? onEach = null)
+        {
+            var toStart = StaggeredStarter.SelectServersToStart(servers).Where(s => !s.IsRunning).ToList();
+            for (int i = 0; i < toStart.Count; i++)
+            {
+                var s = toStart[i];
+                s.TransientStatus = "Starting…";
+                s.ProcessManager.Start();
+                NotifyStarted(s.ID);
+                await ServerControl.SnapshotAfterStartAsync(s);
+                s.TransientStatus = null;
+                onEach?.Invoke();
+                if (i < toStart.Count - 1)
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Max(0, _config.AutoStartStaggerTime)));
+            }
+        }
+
         private async Task TickAsync()
         {
             if (_ticking) return;   // never overlap ticks

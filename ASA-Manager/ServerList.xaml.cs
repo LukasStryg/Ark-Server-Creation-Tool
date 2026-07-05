@@ -203,8 +203,7 @@ namespace ARKServerCreationTool
 
                         if (runButtonStatus == RunButtonStatus.Run)
                         {
-                            Parallel.For(0, serversInCluster.Length, i => serversInCluster[i].ProcessManager.Start());
-                            foreach (var s in serversInCluster) await Services.Servers.ServerControl.SnapshotAfterStartAsync(s);
+                            await AppServices.Coordinator.StartStaggeredAsync(serversInCluster, UpdateList);
                             config.Save();
                         }
                         else if (runButtonStatus == RunButtonStatus.Stop)
@@ -249,8 +248,7 @@ namespace ARKServerCreationTool
 
         private async void btn_startAll_Click(object sender, RoutedEventArgs e)
         {
-            Parallel.For(0, config.Servers.Count, i => config.Servers[i].ProcessManager.Start());
-            foreach (var s in config.Servers) await Services.Servers.ServerControl.SnapshotAfterStartAsync(s);
+            await AppServices.Coordinator.StartStaggeredAsync(config.Servers, UpdateList);
             config.Save();
             UpdateList();
         }
