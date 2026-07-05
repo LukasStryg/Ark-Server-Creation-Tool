@@ -196,30 +196,16 @@ namespace ARKServerCreationTool
                 if (chk_entireCluster.IsChecked.Value)
                 {
                     lbl_controlStatus.Text = "Gracefully stopping cluster…";
-                    await GracefulStopClusterAsync();
+                    await Services.Servers.ServerControl.GracefulStopManyAsync(config.Servers.Where(s => s.ClusterKey == targetServer.ClusterKey));
                     lbl_controlStatus.Text = "Cluster stopped.";
                 }
                 else
                 {
-                    var result = await BuildControlService().GracefulStopAsync(TimeSpan.FromSeconds(60), controlProgress);
+                    var result = await Services.Servers.ServerControl.GracefulStopAsync(targetServer, controlProgress);
                     lbl_controlStatus.Text = $"Stop result: {result}";
                 }
             }
             finally { btn_stop.IsEnabled = true; btn_forceStop.IsEnabled = true; UpdateStatus(); }
-        }
-
-        private async Task GracefulStopClusterAsync()
-        {
-            var toStop = config.Servers.Where(s => s.ClusterKey == targetServer.ClusterKey && s.IsRunning).ToList();
-            var tasks = toStop.Select(s =>
-            {
-                var svc = new ServerControlService(
-                    () => new RconClient("127.0.0.1", s.RconPort),
-                    new GameProcessControllerAdapter(s.ProcessManager),
-                    s.ServerAdminPassword);
-                return svc.GracefulStopAsync(TimeSpan.FromSeconds(60));
-            }).ToList();
-            await Task.WhenAll(tasks);
         }
 
         private void StartStopEntireCluster(string clusterKey, bool start) //set start to true to start all servers in cluster, false to stop them
@@ -242,15 +228,6 @@ namespace ARKServerCreationTool
         private void chk_entireCluster_Click(object sender, RoutedEventArgs e)
         {
             UpdateStatus();
-        }
-
-        private ServerControlService BuildControlService()
-        {
-            var adapter = new GameProcessControllerAdapter(processManager);
-            return new ServerControlService(
-                () => new RconClient("127.0.0.1", targetServer.RconPort),
-                adapter,
-                targetServer.ServerAdminPassword);
         }
 
         private void btn_forceStop_Click(object sender, RoutedEventArgs e)
@@ -285,7 +262,7 @@ namespace ARKServerCreationTool
                     catch (Exception ex) { lbl_controlStatus.Text = $"Metadata refresh failed: {ex.Message}"; }
                 }
 
-                bool ok = await BuildControlService().RestartToApplyAsync(TimeSpan.FromSeconds(60), controlProgress);
+                bool ok = await Services.Servers.ServerControl.For(targetServer).RestartToApplyAsync(TimeSpan.FromSeconds(60), controlProgress);
                 if (ok)
                 {
                     targetServer.SnapshotRunningModVersions(AppServices.MetadataCache);

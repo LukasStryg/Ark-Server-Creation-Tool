@@ -171,7 +171,7 @@ namespace ARKServerCreationTool
             UpdateList();
         }
 
-        private void btn_RunServer_Click(object sender, RoutedEventArgs e)
+        private async void btn_RunServer_Click(object sender, RoutedEventArgs e)
         {
             if (runButtonStatus == RunButtonStatus.Unknown)
             {
@@ -199,17 +199,14 @@ namespace ARKServerCreationTool
                 {
                     ASCTServerConfig[] serversInCluster = cluster.ToArray();
 
-                    Parallel.For(0, serversInCluster.Length, i =>
+                    if (runButtonStatus == RunButtonStatus.Run)
                     {
-                        if (runButtonStatus == RunButtonStatus.Run)
-                        {
-                            serversInCluster[i].ProcessManager.Start();
-                        }
-                        else if (runButtonStatus == RunButtonStatus.Stop)
-                        {
-                            serversInCluster[i].ProcessManager.Stop();
-                        }
-                    });
+                        Parallel.For(0, serversInCluster.Length, i => serversInCluster[i].ProcessManager.Start());
+                    }
+                    else if (runButtonStatus == RunButtonStatus.Stop)
+                    {
+                        await Services.Servers.ServerControl.GracefulStopManyAsync(serversInCluster);
+                    }
 
                     launchOne = false;
                 }
@@ -223,7 +220,7 @@ namespace ARKServerCreationTool
                 }
                 else if (runButtonStatus == RunButtonStatus.Stop)
                 {
-                    selectedServer.ProcessManager.Stop();
+                    await Services.Servers.ServerControl.GracefulStopAsync(selectedServer);
                 }
             }
 
@@ -240,14 +237,10 @@ namespace ARKServerCreationTool
 
         }
 
-        private void btn_stopAll_Click(object sender, RoutedEventArgs e)
+        private async void btn_stopAll_Click(object sender, RoutedEventArgs e)
         {
-            Parallel.For(0, config.Servers.Count, i =>
-            {
-                config.Servers[i].ProcessManager.Stop();
-            });
+            await Services.Servers.ServerControl.GracefulStopManyAsync(config.Servers);
             UpdateList();
-
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)

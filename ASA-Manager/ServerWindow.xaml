@@ -14,14 +14,7 @@
         <Label x:Name="lbl_serverName" Content="Server: Server Name" Margin="10,10,287,0" VerticalAlignment="Top" FontSize="16" Padding="0"/>
         <Label x:Name="lbl_serverCluster" Content="Cluster: Cluster Name" IsEnabled="False" Margin="10,31,287,0" VerticalAlignment="Top" Padding="0"/>
         <StackPanel Margin="10,80,10,10" VerticalAlignment="Top">
-            <GroupBox Header="Force Stop / Restart (RCON)" Height="120" Margin="0,0,0,8">
-                <Grid>
-                    <Button x:Name="btn_forceStop" Content="Force Stop (no save)" ToolTip="Immediately hard-kills the process without saving. For hung servers only." Margin="10,8,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" Width="200" Height="28" Click="btn_forceStop_Click"/>
-                    <Button x:Name="btn_restartApply" Content="Restart (apply mods)" Margin="0,8,10,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="200" Height="28" Click="btn_restartApply_Click"/>
-                    <TextBlock x:Name="lbl_controlStatus" Margin="10,44,10,4" TextWrapping="Wrap" VerticalAlignment="Top" Foreground="#FF444444"/>
-                </Grid>
-            </GroupBox>
-            <GroupBox Header="Process Controls" Height="72">
+            <GroupBox Header="Process Controls" Height="72" Margin="0,0,0,8">
                 <Grid>
                     <CheckBox x:Name="chk_entireCluster" Content="All Servers in Cluster?" HorizontalAlignment="Right" Width="221" Height="15" VerticalAlignment="Bottom" Margin="0,0,10,34" Click="chk_entireCluster_Click"/>
                     <Button x:Name="btn_start" Content="Start Server/cluster" Margin="0,20,118,0" HorizontalAlignment="Right" Width="113" Click="btn_start_Click"/>
@@ -30,6 +23,13 @@
                     <Label x:Name="lbl_clusterStatus" Content="Cluster: 0/0 servers runnning" IsEnabled="False"  HorizontalAlignment="Left" Margin="5,20,0,0" VerticalAlignment="Top" Width="185" Padding="0"/>
                 </Grid>
             </GroupBox>
+            <GroupBox Header="Force Stop / Restart (RCON)" Height="56">
+                <Grid>
+                    <Button x:Name="btn_forceStop" Content="Force Stop (no save)" ToolTip="Immediately hard-kills the process without saving. For hung servers only." Margin="10,4,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" Width="200" Height="28" Click="btn_forceStop_Click"/>
+                    <Button x:Name="btn_restartApply" Content="Restart (apply mods)" Margin="0,4,10,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="200" Height="28" Click="btn_restartApply_Click"/>
+                </Grid>
+            </GroupBox>
+            <TextBlock x:Name="lbl_controlStatus" Margin="4,6,4,0" TextWrapping="Wrap" Foreground="#FF444444" MinHeight="16"/>
         </StackPanel>
     </Grid>
 </Window>
