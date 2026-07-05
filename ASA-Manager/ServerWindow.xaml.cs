@@ -187,20 +187,39 @@ namespace ARKServerCreationTool
             UpdateStatus();
         }
 
-        private void btn_stop_Click(object sender, RoutedEventArgs e)
+        private async void btn_stop_Click(object sender, RoutedEventArgs e)
         {
-            bool actOnCluster = chk_entireCluster.IsChecked.Value;
-
-            if (actOnCluster)
+            btn_stop.IsEnabled = false;
+            btn_forceStop.IsEnabled = false;
+            try
             {
-                StartStopEntireCluster(targetServer.ClusterKey, false);
+                if (chk_entireCluster.IsChecked.Value)
+                {
+                    lbl_controlStatus.Text = "Gracefully stopping cluster…";
+                    await GracefulStopClusterAsync();
+                    lbl_controlStatus.Text = "Cluster stopped.";
+                }
+                else
+                {
+                    var result = await BuildControlService().GracefulStopAsync(TimeSpan.FromSeconds(60), controlProgress);
+                    lbl_controlStatus.Text = $"Stop result: {result}";
+                }
             }
-            else
-            {
-                targetServer.ProcessManager.Stop();
-            }
+            finally { btn_stop.IsEnabled = true; btn_forceStop.IsEnabled = true; UpdateStatus(); }
+        }
 
-            UpdateStatus();
+        private async Task GracefulStopClusterAsync()
+        {
+            var toStop = config.Servers.Where(s => s.ClusterKey == targetServer.ClusterKey && s.IsRunning).ToList();
+            var tasks = toStop.Select(s =>
+            {
+                var svc = new ServerControlService(
+                    () => new RconClient("127.0.0.1", s.RconPort),
+                    new GameProcessControllerAdapter(s.ProcessManager),
+                    s.ServerAdminPassword);
+                return svc.GracefulStopAsync(TimeSpan.FromSeconds(60));
+            }).ToList();
+            await Task.WhenAll(tasks);
         }
 
         private void StartStopEntireCluster(string clusterKey, bool start) //set start to true to start all servers in cluster, false to stop them
@@ -234,15 +253,20 @@ namespace ARKServerCreationTool
                 targetServer.ServerAdminPassword);
         }
 
-        private async void btn_gracefulStop_Click(object sender, RoutedEventArgs e)
+        private void btn_forceStop_Click(object sender, RoutedEventArgs e)
         {
-            btn_gracefulStop.IsEnabled = false;
-            try
-            {
-                var result = await BuildControlService().GracefulStopAsync(TimeSpan.FromSeconds(60), controlProgress);
-                lbl_controlStatus.Text = $"Stop result: {result}";
-            }
-            finally { btn_gracefulStop.IsEnabled = true; UpdateStatus(); }
+            var confirm = MessageBox.Show(
+                "Force-kill the server process now WITHOUT saving? Use this only if the server is hung — unsaved progress since the last save may be lost.",
+                "Force Stop", MessageBoxButton.YesNo);
+            if (confirm != MessageBoxResult.Yes) return;
+
+            if (chk_entireCluster.IsChecked.Value)
+                StartStopEntireCluster(targetServer.ClusterKey, false);
+            else
+                targetServer.ProcessManager.Stop();
+
+            lbl_controlStatus.Text = "Force-stopped.";
+            UpdateStatus();
         }
 
         private async void btn_restartApply_Click(object sender, RoutedEventArgs e)
