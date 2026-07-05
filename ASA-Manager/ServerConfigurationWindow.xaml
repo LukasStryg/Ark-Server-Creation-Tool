@@ -59,6 +59,7 @@
             <CheckBox x:Name="chk_automaticStart" Grid.Column="1" Content="" HorizontalAlignment="Left" Margin="10,0,0,0" VerticalContentAlignment="Center" Height="26" Click="chk_crossplay_Checked" VerticalAlignment="Top"/>
             <Label Content="Automatic Start" Margin="10,0,0,0" VerticalAlignment="Top" Height="26" HorizontalContentAlignment="Right"/>
             <Label x:Name="lbl_allowAutoLaunchDisabled" Grid.Column="1" Content="⚠️ Automatic start is currently disabled globally." HorizontalAlignment="Left" Margin="30,0,0,0" VerticalAlignment="Top" FontSize="10" Height="26" VerticalContentAlignment="Center" Width="358"/>
+            <CheckBox x:Name="chk_excludeBulkStart" Grid.Column="1" Content="Exclude from Start All / auto-start" HorizontalAlignment="Left" Margin="10,31,0,0" Height="26" VerticalContentAlignment="Center" VerticalAlignment="Top"/>
         </Grid>
     </Grid>
 </Window>

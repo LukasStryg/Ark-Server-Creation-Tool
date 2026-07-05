@@ -62,6 +62,7 @@ namespace ARKServerCreationTool
             txt_multiHomeIPaddress.Text = targetServer.IPAddress.ToString();
             txt_activeEvent.Text = targetServer.ActiveEvent;
             chk_automaticStart.IsChecked = targetServer.StartAutomatically;
+            chk_excludeBulkStart.IsChecked = targetServer.ExcludeFromBulkStart;
             lbl_allowAutoLaunchDisabled.Visibility = (chk_automaticStart.IsChecked.Value == true && ASCTGlobalConfig.Instance.AllowAutomaticStart == false) ? Visibility.Visible : Visibility.Collapsed;
 
             txt_rconPort.Text = targetServer.RconPort.ToString();
@@ -218,6 +219,7 @@ namespace ARKServerCreationTool
             if (chkbx_overrideCommandline.IsChecked.Value) serv.customLaunchArgs = txt_commandLine.Text.Trim();
             serv.ActiveEvent = txt_activeEvent.Text.Trim();
             serv.StartAutomatically = chk_automaticStart.IsChecked.Value;
+            serv.ExcludeFromBulkStart = chk_excludeBulkStart.IsChecked.Value;
             return true;
         }
 
