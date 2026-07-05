@@ -137,11 +137,12 @@
                 <!-- Automatic Start -->
                 <Grid Margin="0,3">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="130"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <Label Grid.Column="0" Content="Automatic Start" HorizontalContentAlignment="Right" VerticalAlignment="Top"/>
-                    <StackPanel Grid.Column="1">
-                        <CheckBox x:Name="chk_automaticStart" VerticalAlignment="Center" Click="chk_crossplay_Checked"/>
-                        <Label x:Name="lbl_allowAutoLaunchDisabled" Content="⚠️ Automatic start is currently disabled globally." FontSize="10" Padding="0" Margin="0,2,0,0"/>
-                    </StackPanel>
+                    <Label Grid.Column="0" Content="Automatic Start" HorizontalContentAlignment="Right" VerticalAlignment="Center"/>
+                    <CheckBox Grid.Column="1" x:Name="chk_automaticStart" VerticalAlignment="Center" Click="chk_crossplay_Checked"/>
+                </Grid>
+                <Grid Margin="0,0,0,3">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="130"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Label Grid.Column="1" x:Name="lbl_allowAutoLaunchDisabled" Content="⚠️ Automatic start is currently disabled globally." FontSize="10" Padding="0"/>
                 </Grid>
 
                 <!-- Exclude from bulk start -->
