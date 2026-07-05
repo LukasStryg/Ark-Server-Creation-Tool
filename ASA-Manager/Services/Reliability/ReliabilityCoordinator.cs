@@ -73,23 +73,30 @@ namespace ARKServerCreationTool.Services.Reliability
             try
             {
                 var now = DateTime.Now;
-                await RunDueSchedulesAsync(now);
+                RunDueSchedules(now);
                 await DetectCrashesAsync(now);
             }
             catch (Exception ex) { ReliabilityLog.Append($"Tick error: {ex.Message}"); }
             finally { _ticking = false; }
         }
 
-        private async Task RunDueSchedulesAsync(DateTime now)
+        private void RunDueSchedules(DateTime now)
         {
             foreach (var task in _config.ScheduledTasks.Where(t => t.Enabled).ToList())
             {
                 if (!ScheduleEvaluator.IsDue(task, now)) continue;
-                task.LastRun = now;            // stamp before running so a slow run can't double-fire
+                task.LastRun = now;            // stamp before running so it can't re-fire while it runs
                 try { _config.Save(); } catch { }
-                try { await RunTaskAsync(task, now); }
-                catch (Exception ex) { ReliabilityLog.Append($"Scheduled {task.Type} failed: {ex.Message}"); }
+                // Fire-and-forget: a long restart countdown or a large backup must not block the tick,
+                // or crash detection and other schedules would freeze until it finishes.
+                _ = RunTaskSafelyAsync(task, now);
             }
+        }
+
+        private async Task RunTaskSafelyAsync(ScheduledTask task, DateTime now)
+        {
+            try { await RunTaskAsync(task, now); }
+            catch (Exception ex) { ReliabilityLog.Append($"Scheduled {task.Type} failed: {ex.Message}"); }
         }
 
         private async Task RunTaskAsync(ScheduledTask task, DateTime now)
