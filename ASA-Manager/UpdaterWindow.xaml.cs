@@ -195,8 +195,9 @@ namespace ARKServerCreationTool
 
             if (serverWasRunning)
             {
-                WriteToUpdateOutput($"Stopping server...");
-                targetServer.ProcessManager.Stop();
+                WriteToUpdateOutput($"Gracefully stopping server...");
+                // Runs on a background thread (Task.Factory.StartNew), so blocking here is safe (no UI-thread deadlock).
+                Services.Servers.ServerControl.GracefulStopAsync(targetServer).GetAwaiter().GetResult();
                 WriteToUpdateOutput($"Server stopped.");
             }
 
