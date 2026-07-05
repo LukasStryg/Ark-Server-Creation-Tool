@@ -55,12 +55,24 @@ namespace ARKServerCreationTool.Services.CurseForge
             }
         }
 
-        public void Save() => File.WriteAllText(FileName, JsonConvert.SerializeObject(this, Formatting.Indented));
+        public void Save()
+        {
+            string tmp = FileName + ".tmp";
+            File.WriteAllText(tmp, JsonConvert.SerializeObject(this, Formatting.Indented));
+            File.Move(tmp, FileName, overwrite: true); // atomic replace so a mid-write crash can't leave a truncated cache
+        }
 
         public static ModMetadataCache Load()
         {
-            if (!File.Exists(FileName)) return new ModMetadataCache();
-            return JsonConvert.DeserializeObject<ModMetadataCache>(File.ReadAllText(FileName)) ?? new ModMetadataCache();
+            try
+            {
+                if (!File.Exists(FileName)) return new ModMetadataCache();
+                return JsonConvert.DeserializeObject<ModMetadataCache>(File.ReadAllText(FileName)) ?? new ModMetadataCache();
+            }
+            catch
+            {
+                return new ModMetadataCache(); // a corrupt/locked cache must never crash the app
+            }
         }
     }
 }

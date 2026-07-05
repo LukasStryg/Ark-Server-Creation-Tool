@@ -74,8 +74,9 @@ namespace ARKServerCreationTool
 
         public ushort NextAvailablePort()
         {
-            return (ushort)(Servers.Select(s => s.GamePort).DefaultIfEmpty((ushort)(StartingGamePort - PortIncrement))
-                .Max() + PortIncrement);
+            ushort step = PortIncrement == 0 ? (ushort)1 : PortIncrement; // guard: 0 would give duplicate ports
+            return (ushort)(Servers.Select(s => s.GamePort).DefaultIfEmpty((ushort)(StartingGamePort - step))
+                .Max() + step);
         }
 
         public int NextAvailableID()
@@ -86,8 +87,9 @@ namespace ARKServerCreationTool
         public ushort NextAvailableRconPort()
         {
             ushort start = StartingRCONPort;
+            ushort step = PortIncrement == 0 ? (ushort)1 : PortIncrement; // guard: 0 would loop forever
             var used = new HashSet<ushort>(Servers.Select(s => s.RconPort).Where(p => p != 0));
-            for (ushort p = start; p < ushort.MaxValue; p += PortIncrement)
+            for (ushort p = start; p < ushort.MaxValue; p += step)
             {
                 // avoid colliding with any assigned rcon port or any game port
                 if (!used.Contains(p) && Servers.All(s => s.GamePort != p)) return p;

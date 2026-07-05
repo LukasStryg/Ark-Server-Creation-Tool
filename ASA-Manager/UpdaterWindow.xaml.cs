@@ -185,6 +185,12 @@ namespace ARKServerCreationTool
                 }
             }
 
+            if (!File.Exists(depotDownloaderExePath))
+            {
+                WriteToUpdateOutput("DepotDownloader is not available; update skipped.");
+                return -1;
+            }
+
             ASCTServerConfig targetServer = config.Servers.Where(s => s.ID == targetServerID).FirstOrDefault();
 
             WriteToUpdateOutput($"Updating: \"{targetServer.Name}\" in {targetServer.GameDirectory} ");
@@ -192,52 +198,59 @@ namespace ARKServerCreationTool
             bool serverWasRunning = targetServer.IsRunning;
 
             int serverLockId = targetServer.ProcessManager.LockServer("Update in progress");
-
-            if (serverWasRunning)
+            int exitCode = -1;
+            try
             {
-                WriteToUpdateOutput($"Gracefully stopping server...");
-                // Runs on a background thread (Task.Factory.StartNew), so blocking here is safe (no UI-thread deadlock).
-                Services.Servers.ServerControl.GracefulStopAsync(targetServer).GetAwaiter().GetResult();
-                WriteToUpdateOutput($"Server stopped.");
-            }
-
-            Process updateProcess = new Process();
-            updateProcess.StartInfo = new ProcessStartInfo
-            {
-                FileName = depotDownloaderExePath,
-                Arguments = $"-app {config.serverAppID} -dir \"{targetServer.GameDirectory}\" {(config.validateUpdates ? "-validate" : string.Empty)}",
-                RedirectStandardOutput = false,
-                CreateNoWindow = false,
-                UseShellExecute = false
-            };
-
-            updateProcess.Start();
-            updateProcess.WaitForExit();
-
-            if (updateProcess.ExitCode != 0)
-            {
-                WriteToUpdateOutput($"Update may have failed, exit code: {updateProcess.ExitCode}");
-
-                MessageBoxResult boxResult = MessageBox.Show("DepotDownloader exited with an error code. Updating it may resolve this. Would you like to update it and try to update again?", "Updater exited with an error", MessageBoxButton.YesNo);
-
-                if (boxResult == MessageBoxResult.Yes)
+                if (serverWasRunning)
                 {
-                    DownloadAndExtractDepotDownloader();
+                    WriteToUpdateOutput($"Gracefully stopping server...");
+                    // Runs on a background thread (Task.Factory.StartNew), so blocking here is safe (no UI-thread deadlock).
+                    Services.Servers.ServerControl.GracefulStopAsync(targetServer).GetAwaiter().GetResult();
+                    WriteToUpdateOutput($"Server stopped.");
+                }
 
-                    UpdateSingleServer(targetServerID);
+                Process updateProcess = new Process();
+                updateProcess.StartInfo = new ProcessStartInfo
+                {
+                    FileName = depotDownloaderExePath,
+                    Arguments = $"-app {config.serverAppID} -dir \"{targetServer.GameDirectory}\" {(config.validateUpdates ? "-validate" : string.Empty)}",
+                    RedirectStandardOutput = false,
+                    CreateNoWindow = false,
+                    UseShellExecute = false
+                };
+
+                updateProcess.Start();
+                updateProcess.WaitForExit();
+                exitCode = updateProcess.ExitCode;
+
+                if (exitCode != 0)
+                {
+                    WriteToUpdateOutput($"Update may have failed, exit code: {exitCode}");
+
+                    MessageBoxResult boxResult = MessageBox.Show("DepotDownloader exited with an error code. Updating it may resolve this. Would you like to update it and try to update again?", "Updater exited with an error", MessageBoxButton.YesNo);
+
+                    if (boxResult == MessageBoxResult.Yes)
+                    {
+                        DownloadAndExtractDepotDownloader();
+
+                        UpdateSingleServer(targetServerID);
+                    }
+                }
+            }
+            finally
+            {
+                // Always unlock and restore a previously-running server, even if the update threw.
+                targetServer.ProcessManager.UnlockServer(serverLockId);
+
+                if (serverWasRunning)
+                {
+                    WriteToUpdateOutput($"Starting server...");
+                    targetServer.ProcessManager.Start();
+                    WriteToUpdateOutput($"Started server.");
                 }
             }
 
-            targetServer.ProcessManager.UnlockServer(serverLockId);
-
-            if (serverWasRunning)
-            {
-                WriteToUpdateOutput($"Starting server...");
-                targetServer.ProcessManager.Start();
-                WriteToUpdateOutput($"Started server.");
-            }
-
-            return updateProcess.ExitCode;
+            return exitCode;
         }
 
         private void DownloadAndExtractDepotDownloader()

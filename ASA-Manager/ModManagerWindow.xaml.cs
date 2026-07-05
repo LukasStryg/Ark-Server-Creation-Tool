@@ -239,21 +239,25 @@ namespace ARKServerCreationTool
         {
             if (e.Data.GetData(typeof(ModEntry)) is not ModEntry dragged) return;
             int from = modItems.IndexOf(dragged);
-            int to = GetDropIndex(e);
+            if (from < 0) return;
+            int insertBefore = GetDropInsertIndex(e);                       // 0..Count in the current list
+            int to = from < insertBefore ? insertBefore - 1 : insertBefore; // removing `from` first shifts a later target down one
+            if (to < 0) to = 0;
+            if (to > modItems.Count - 1) to = modItems.Count - 1;
             ListReorder.Move(modItems, from, to);
         }
 
-        private int GetDropIndex(DragEventArgs e)
+        private int GetDropInsertIndex(DragEventArgs e)
         {
             for (int i = 0; i < lst_mods.Items.Count; i++)
             {
                 if (lst_mods.ItemContainerGenerator.ContainerFromIndex(i) is ListBoxItem lbi)
                 {
                     var bounds = new System.Windows.Rect(lbi.TranslatePoint(new System.Windows.Point(0, 0), lst_mods), lbi.RenderSize);
-                    if (e.GetPosition(lst_mods).Y < bounds.Top + bounds.Height / 2) return i;
+                    if (e.GetPosition(lst_mods).Y < bounds.Top + bounds.Height / 2) return i; // insert before item i
                 }
             }
-            return modItems.Count - 1;
+            return lst_mods.Items.Count; // below everything → insert at the end
         }
 
         private void btn_done_Click(object sender, RoutedEventArgs e)

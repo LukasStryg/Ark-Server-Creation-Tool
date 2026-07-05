@@ -169,7 +169,11 @@ namespace ARKServerCreationTool
                 }
             }
 
-            UpdateServerObject(ref targetServer);
+            if (!UpdateServerObject(ref targetServer))
+            {
+                MessageBox.Show("Please fix the highlighted invalid value(s) before saving.");
+                return;
+            }
 
             if (newServer)
             {
@@ -190,11 +194,11 @@ namespace ARKServerCreationTool
             }
         }
 
-        private void UpdateServerObject(ref ASCTServerConfig serv)
+        private bool UpdateServerObject(ref ASCTServerConfig serv)
         {
             if (!ValidateGamePortString(txt_gamePort.Text) || !ValidateSlotString(txt_slots.Text))
             {
-                return;
+                return false;
             }
 
             serv.Name = txt_serverName.Text;
@@ -214,6 +218,7 @@ namespace ARKServerCreationTool
             if (chkbx_overrideCommandline.IsChecked.Value) serv.customLaunchArgs = txt_commandLine.Text.Trim();
             serv.ActiveEvent = txt_activeEvent.Text.Trim();
             serv.StartAutomatically = chk_automaticStart.IsChecked.Value;
+            return true;
         }
 
         private void btn_newCluster_Click(object sender, RoutedEventArgs e)
