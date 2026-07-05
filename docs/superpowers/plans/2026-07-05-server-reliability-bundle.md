@@ -767,8 +767,9 @@ namespace ARKServerCreationTool.Tests
         private sealed class FakeRcon : IRconClient
         {
             public List<string> Commands = new();
+            public Action? OnDoExit;   // in reality, DoExit terminates the server process
             public Task<bool> ConnectAndAuthenticateAsync(string password, CancellationToken ct = default) => Task.FromResult(true);
-            public Task<string> ExecuteAsync(string command, CancellationToken ct = default) { Commands.Add(command); return Task.FromResult("ok"); }
+            public Task<string> ExecuteAsync(string command, CancellationToken ct = default) { Commands.Add(command); if (command == "DoExit") OnDoExit?.Invoke(); return Task.FromResult("ok"); }
             public void Dispose() { }
         }
 
@@ -786,14 +787,15 @@ namespace ARKServerCreationTool.Tests
         {
             var rcon = new FakeRcon();
             var proc = new FakeProcess();
+            rcon.OnDoExit = () => proc.Running = false;   // the server stops in response to DoExit, not before
             var svc = new ServerControlService(() => rcon, proc, "pw");
             var steps = new List<RestartStep>
             {
                 new RestartStep("Server restarting in 1 minute", TimeSpan.FromMinutes(1)),
             };
 
-            // process exits promptly once DoExit is issued; delay is a no-op in the test
-            Func<TimeSpan, CancellationToken, Task> noWait = (_, __) => { proc.Running = false; return Task.CompletedTask; };
+            // The countdown delay is a no-op in the test; the process stays running until DoExit.
+            Func<TimeSpan, CancellationToken, Task> noWait = (_, __) => Task.CompletedTask;
 
             var ok = await svc.RestartWithCountdownAsync(steps, TimeSpan.FromSeconds(2), noWait);
 
