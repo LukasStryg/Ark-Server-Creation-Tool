@@ -200,7 +200,7 @@ git commit -m "feat(reliability): add ScheduledTask model and reliability config
 
 **Interfaces:**
 - Consumes: `ASCTServerConfig` (`ExcludeFromBulkStart`, `IsRunning`).
-- Produces: `StaggeredStarter.SelectServersToStart(IEnumerable<ASCTServerConfig> servers) : IReadOnlyList<ASCTServerConfig>` — drops excluded + already-running, preserves input order.
+- Produces: `StaggeredStarter.SelectServersToStart(IEnumerable<ASCTServerConfig> servers) : IReadOnlyList<ASCTServerConfig>` — drops servers with `ExcludeFromBulkStart`, preserves input order. Pure: reads only the flag. (Skipping already-running servers needs `ASCTServerConfig.IsRunning`, which requires the loaded config singleton, so the shell does that at runtime — not this pure unit.)
 
 - [ ] **Step 1: Write the failing test**
 
@@ -217,8 +217,7 @@ namespace ARKServerCreationTool.Tests
 {
     public class StaggeredStarterTests
     {
-        // ExcludeFromBulkStart is a plain bool; IsRunning derives from the process manager,
-        // which reports false for servers that were never started in a unit-test context.
+        // SelectServersToStart is pure — it filters only on the ExcludeFromBulkStart flag.
         private static ASCTServerConfig Srv(int id, bool exclude = false)
             => new ASCTServerConfig(id, (ushort)(7777 + id)) { ExcludeFromBulkStart = exclude };
 
@@ -262,8 +261,11 @@ namespace ARKServerCreationTool.Services.Reliability
     /// <summary>Pure selection of which servers a bulk-start operation should launch, in order.</summary>
     public static class StaggeredStarter
     {
+        // Pure: filters on ExcludeFromBulkStart only. Skipping already-running servers needs
+        // ASCTServerConfig.IsRunning (which requires the loaded config singleton), so the caller
+        // does that at runtime — see ReliabilityCoordinator.StartStaggeredAsync.
         public static IReadOnlyList<ASCTServerConfig> SelectServersToStart(IEnumerable<ASCTServerConfig> servers)
-            => servers.Where(s => !s.ExcludeFromBulkStart && !s.IsRunning).ToList();
+            => servers.Where(s => !s.ExcludeFromBulkStart).ToList();
     }
 }
 ```
@@ -1272,7 +1274,7 @@ In `ReliabilityCoordinator`, add:
 /// <summary>Starts the given servers sequentially, spaced by the configured stagger delay, honoring the exclude flag.</summary>
 public async Task StartStaggeredAsync(IEnumerable<ASCTServerConfig> servers, Action? onEach = null)
 {
-    var toStart = StaggeredStarter.SelectServersToStart(servers);
+    var toStart = StaggeredStarter.SelectServersToStart(servers).Where(s => !s.IsRunning).ToList();
     for (int i = 0; i < toStart.Count; i++)
     {
         var s = toStart[i];
