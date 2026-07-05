@@ -62,7 +62,7 @@ namespace ARKServerCreationTool.Services.Reliability
                 s.TransientStatus = null;
                 onEach?.Invoke();
                 if (i < toStart.Count - 1)
-                    await Task.Delay(TimeSpan.FromSeconds(Math.Max(0, _config.AutoStartStaggerTime)));
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Max(0, (int)_config.AutoStartStaggerTime)));
             }
         }
 
@@ -117,7 +117,7 @@ namespace ARKServerCreationTool.Services.Reliability
                     ReliabilityLog.Append($"Scheduled restart done: {server.Name}");
                 }
                 finally { MarkOperation(server.ID, false); }
-                await Task.Delay(TimeSpan.FromSeconds(Math.Max(0, _config.AutoStartStaggerTime)));
+                await Task.Delay(TimeSpan.FromSeconds(Math.Max(0, (int)_config.AutoStartStaggerTime)));
             }
         }
 
