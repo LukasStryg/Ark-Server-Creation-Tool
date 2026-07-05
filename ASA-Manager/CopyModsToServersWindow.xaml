@@ -1,0 +1,42 @@
+<Window x:Class="ARKServerCreationTool.CopyModsToServersWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Copy mods to servers" Height="460" Width="440" MinHeight="320" MinWidth="360">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,6"
+                   Text="Copy this server's mod list (and order) to the selected servers. Keep cluster members identical."/>
+
+        <StackPanel Orientation="Horizontal" Grid.Row="1" Margin="0,0,0,6">
+            <TextBlock Text="Mode:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+            <RadioButton x:Name="rb_replace" Content="Replace" IsChecked="True" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <RadioButton x:Name="rb_merge" Content="Merge (append)" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <CheckBox x:Name="chk_includeDisabled" Content="Include disabled" IsChecked="True" VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <ListBox x:Name="lst_targets" Grid.Row="2" SelectionMode="Multiple">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <CheckBox Content="{Binding Display}" IsChecked="{Binding Selected}"/>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <StackPanel Orientation="Horizontal" Grid.Row="3" Margin="0,6,0,0">
+            <Button x:Name="btn_selectCluster" Content="Select cluster members" Click="btn_selectCluster_Click" Margin="0,0,6,0"/>
+            <Button x:Name="btn_selectAll" Content="Select all" Click="btn_selectAll_Click"/>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Grid.Row="4" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <Button x:Name="btn_apply" Content="Apply" Width="80" Height="26" Click="btn_apply_Click" Margin="0,0,6,0"/>
+            <Button x:Name="btn_cancel" Content="Cancel" Width="80" Height="26" Click="btn_cancel_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

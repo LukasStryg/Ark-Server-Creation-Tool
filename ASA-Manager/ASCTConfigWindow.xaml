@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ARKServerCreationTool"
         mc:Ignorable="d"
-        Title="ASCT - Global Configuration" Height="283" Width="586" MinWidth="586"  MinHeight="237" 
+        Title="ASCT - Global Configuration" Height="325" Width="586" MinWidth="586"  MinHeight="280"
         Closing="WindowClose">
     <Grid>
         <Label Content="ASCT Configuration" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,10,0,0" FontSize="16"/>
@@ -24,5 +24,8 @@
         <Button x:Name="btn_clusterDirBrowse" Content="Browse" Margin="0,79,10,0" Height="26" VerticalAlignment="Top" Click="btn_clusterDirBrowse_Click" HorizontalAlignment="Right" Width="98"/>
         <CheckBox x:Name="chk_AllowAutoLaunch" Content="Allow servers to be started automatically when ASCT is launched" HorizontalAlignment="Left" Margin="126,192,0,0" VerticalAlignment="Top"/>
         <CheckBox x:Name="chk_PromptStartAllServers" Content="Prompt start all servers in cluster" HorizontalAlignment="Left" Margin="126,212,0,0" VerticalAlignment="Top"/>
+        <Label Content="CurseForge API Key" HorizontalAlignment="Left" Margin="10,243,0,0" VerticalAlignment="Top"/>
+        <TextBox x:Name="txt_curseforgeKey" ToolTip="Optional. Enables mod name resolution and update checks. Get one at console.curseforge.com (third-party services must apply)." Margin="126,243,90,0" VerticalAlignment="Top" Height="26" VerticalContentAlignment="Center"/>
+        <Button x:Name="btn_verifyKey" Content="Verify" Margin="0,243,10,0" HorizontalAlignment="Right" VerticalAlignment="Top" Width="75" Height="26" Click="btn_verifyKey_Click"/>
     </Grid>
 </Window>

@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization;
+using ARKServerCreationTool.Models;
 
 namespace ARKServerCreationTool
 {
@@ -66,17 +68,45 @@ namespace ARKServerCreationTool
 
         public bool validateUpdates = true;
 
+        public string CurseForgeApiKey { get; set; } = string.Empty;
+
         public List<ASCTServerConfig> Servers = new List<ASCTServerConfig>();
 
         public ushort NextAvailablePort()
         {
-            return (ushort)(Servers.Select(s => s.GamePort).DefaultIfEmpty((ushort)(StartingGamePort - PortIncrement))
-                .Max() + PortIncrement);
+            ushort step = PortIncrement == 0 ? (ushort)1 : PortIncrement; // guard: 0 would give duplicate ports
+            return (ushort)(Servers.Select(s => s.GamePort).DefaultIfEmpty((ushort)(StartingGamePort - step))
+                .Max() + step);
         }
 
         public int NextAvailableID()
         {
             return Servers.Select(s => s.ID).DefaultIfEmpty(-1).Max() + 1;
+        }
+
+        public ushort NextAvailableRconPort()
+        {
+            ushort start = StartingRCONPort;
+            ushort step = PortIncrement == 0 ? (ushort)1 : PortIncrement; // guard: 0 would loop forever
+            var used = new HashSet<ushort>(Servers.Select(s => s.RconPort).Where(p => p != 0));
+            for (ushort p = start; p < ushort.MaxValue; p += step)
+            {
+                // avoid colliding with any assigned rcon port or any game port
+                if (!used.Contains(p) && Servers.All(s => s.GamePort != p)) return p;
+            }
+            return start;
+        }
+
+        /// <summary>Backfill RCON port + admin password for servers loaded from a pre-RCON config.</summary>
+        public void EnsureServerRconDefaults()
+        {
+            bool changed = false;
+            foreach (var s in Servers)
+            {
+                if (s.RconPort == 0) { s.RconPort = NextAvailableRconPort(); changed = true; }
+                if (string.IsNullOrEmpty(s.ServerAdminPassword)) { s.ServerAdminPassword = ASCTServerConfig.GenerateAdminPassword(); changed = true; }
+            }
+            if (changed) Save();
         }
 
         public void Save()
@@ -98,6 +128,7 @@ namespace ARKServerCreationTool
                 string json = File.ReadAllText(configName);
 
                 returnConfig = JsonConvert.DeserializeObject<ASCTGlobalConfig>(json);
+                returnConfig?.EnsureServerRconDefaults();
             }
 
             return returnConfig;
@@ -117,6 +148,10 @@ namespace ARKServerCreationTool
         [JsonIgnore] internal GameProcessManager ProcessManager => GameProcessManager.GetGameProcessManager(this.ID);
         [JsonIgnore] public bool IsRunning => ProcessManager.IsRunning;
         [JsonIgnore] public string IsRunningToString => IsRunning ? "Running" : "Stopped";
+
+        /// <summary>Transient display status (e.g. "Stopping…") shown in the server list while an operation runs; null = show running/stopped.</summary>
+        [JsonIgnore] public string? TransientStatus { get; set; }
+        [JsonIgnore] public string StatusText => TransientStatus ?? IsRunningToString;
 
         public bool StartAutomatically { get; set; } = false;
 
@@ -152,7 +187,52 @@ namespace ARKServerCreationTool
 
         public string ActiveEvent { get; set; } = string.Empty;
 
-        public HashSet<ulong> modIDs = new HashSet<ulong>();
+        // RCON: enabled per server; ServerAdminPassword doubles as the RCON password. Injected via launch-arg ?-options.
+        public bool RconEnabled { get; set; } = true;
+        public ushort RconPort { get; set; }
+        public string ServerAdminPassword { get; set; } = string.Empty;
+
+        public static string GenerateAdminPassword()
+        {
+            const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+            var bytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(20);
+            var sb = new System.Text.StringBuilder(20);
+            foreach (var b in bytes) sb.Append(chars[b % chars.Length]);
+            return sb.ToString();
+        }
+
+        /// <summary>Per-mod newest file id the server booted with (set on successful start; used for update checks).</summary>
+        public Dictionary<ulong, long> RunningModVersions { get; set; } = new();
+
+        /// <summary>Records the newest known file id per mod as the "running" version (call after a successful start).</summary>
+        public void SnapshotRunningModVersions(Services.CurseForge.ModMetadataCache cache)
+        {
+            RunningModVersions = new Dictionary<ulong, long>();
+            foreach (var m in Mods)
+                if (cache.TryGet(m.ProjectId, out var meta) && meta.LatestFileId.HasValue)
+                    RunningModVersions[m.ProjectId] = meta.LatestFileId.Value;
+        }
+
+        /// <summary>Ordered mod load-order list. The order of this list is the launch order.</summary>
+        public List<ModEntry> Mods { get; set; } = new List<ModEntry>();
+
+        /// <summary>Legacy unordered mod ids from pre-overhaul configs; migrated into <see cref="Mods"/> on load. Not written back once migrated.</summary>
+        [JsonProperty("modIDs", NullValueHandling = NullValueHandling.Ignore)]
+        public HashSet<ulong>? LegacyModIDs { get; set; }
+
+        [OnDeserialized]
+        internal void MigrateLegacyMods(StreamingContext context)
+        {
+            if (Mods.Count == 0 && LegacyModIDs != null && LegacyModIDs.Count > 0)
+            {
+                var seen = new HashSet<ulong>();
+                foreach (var id in LegacyModIDs)
+                {
+                    if (seen.Add(id)) Mods.Add(new ModEntry(id));
+                }
+            }
+            LegacyModIDs = null; // drop from future saves
+        }
 
         [JsonIgnore]
         public string LaunchArguments
@@ -166,7 +246,7 @@ namespace ARKServerCreationTool
                 else
                 {
                     return
-                        $"\"{Map}{MultihomeArgs}\" \"-port={GamePort}\" -WinLiveMaxPlayers={Slots}{ModArgs}{ClusterArgs}{CrossplayArgs}{NoBattleyeArgs}{ActiveEventArgs} -log -servergamelog"
+                        $"\"{Map}{MapQueryOptions}\" \"-port={GamePort}\" -WinLiveMaxPlayers={Slots}{ModArgs}{ClusterArgs}{CrossplayArgs}{NoBattleyeArgs}{ActiveEventArgs} -log -servergamelog"
                             .Trim();
                 }
             }
@@ -183,12 +263,9 @@ namespace ARKServerCreationTool
         {
             get
             {
-                if (modIDs.Count <= 0)
-                {
-                    return string.Empty;
-                }
-
-                return $" \"-mods={string.Join(",", modIDs)}\"";
+                var enabled = Mods.Where(m => m.Enabled).Select(m => m.ProjectId).ToList();
+                if (enabled.Count == 0) return string.Empty;
+                return $" \"-mods={string.Join(",", enabled)}\"";
             }
         }
 
@@ -221,6 +298,25 @@ namespace ARKServerCreationTool
                 {
                     return string.Empty;
                 }
+            }
+        }
+
+        [JsonIgnore]
+        public string MapQueryOptions
+        {
+            get
+            {
+                var opts = new List<string>();
+                if (UseMultihome && IPAddress != string.Empty) opts.Add($"MultiHome={IPAddress}");
+                if (RconEnabled)
+                {
+                    opts.Add("RCONEnabled=True");
+                    opts.Add($"RCONPort={RconPort}");
+                }
+                // ServerAdminPassword MUST be the last ?-option (parse-swallow guard).
+                if (RconEnabled && !string.IsNullOrEmpty(ServerAdminPassword))
+                    opts.Add($"ServerAdminPassword={ServerAdminPassword}");
+                return opts.Count == 0 ? string.Empty : "?" + string.Join("?", opts);
             }
         }
 

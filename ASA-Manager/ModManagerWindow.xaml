@@ -1,0 +1,70 @@
+<Window x:Class="ARKServerCreationTool.ModManagerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Manage Mods" Height="520" Width="580" MinHeight="380" MinWidth="440">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="lbl_header" Grid.Row="0" FontSize="14" FontWeight="Bold" Margin="0,0,0,6" Text="Mods"/>
+
+        <!-- Toolbar (wraps so later features can add buttons here) -->
+        <WrapPanel Grid.Row="1" Margin="0,0,0,6">
+            <TextBlock Text="Project ID:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+            <TextBox x:Name="txt_addId" Width="110" Height="24" VerticalContentAlignment="Center" Margin="0,0,4,0"
+                     ToolTip="The mod's numeric 'Project ID' — shown in the sidebar of its CurseForge page."/>
+            <Button x:Name="btn_add" Content="Add" Width="56" Height="24" Click="btn_add_Click"/>
+            <Button x:Name="btn_bulkAdd" Content="Bulk add…" Height="24" Margin="8,0,0,0" Click="btn_bulkAdd_Click"/>
+            <Button x:Name="btn_copyMods" Content="Copy" Height="24" Margin="8,0,0,0" Click="btn_copyMods_Click"/>
+            <Button x:Name="btn_pasteMods" Content="Paste" Height="24" Margin="4,0,0,0" Click="btn_pasteMods_Click"/>
+            <Button x:Name="btn_copyToServers" Content="Copy to servers…" Height="24" Margin="12,0,0,0" Click="btn_copyToServers_Click"/>
+            <Button x:Name="btn_refreshNames" Content="Refresh names" Height="24" Margin="12,0,0,0" Click="btn_refreshNames_Click"/>
+            <Button x:Name="btn_checkUpdates" Content="Check for updates" Height="24" Margin="4,0,0,0" Click="btn_checkUpdates_Click"/>
+        </WrapPanel>
+
+        <!-- Mod list + reorder/remove buttons -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <ListBox x:Name="lst_mods" Grid.Column="0" SelectionMode="Extended"
+                     AllowDrop="True"
+                     PreviewMouseLeftButtonDown="lst_mods_PreviewMouseLeftButtonDown"
+                     MouseMove="lst_mods_MouseMove"
+                     Drop="lst_mods_Drop">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal">
+                            <CheckBox IsChecked="{Binding Enabled}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                <Button x:Name="btn_up" Content="▲ Up" Width="78" Height="26" Margin="0,0,0,4" Click="btn_up_Click"/>
+                <Button x:Name="btn_down" Content="▼ Down" Width="78" Height="26" Margin="0,0,0,4" Click="btn_down_Click"/>
+                <Button x:Name="btn_remove" Content="🗑 Remove" Width="78" Height="26" Margin="0,0,0,4" Click="btn_remove_Click"/>
+            </StackPanel>
+        </Grid>
+
+        <TextBlock x:Name="lbl_modStatus" Grid.Row="3" FontSize="10" Foreground="Gray" Margin="0,6,0,0" TextWrapping="Wrap"/>
+
+        <StackPanel Grid.Row="4" Margin="0,6,0,0">
+            <TextBlock Text="Load-order preview:" FontSize="10" Foreground="Gray"/>
+            <TextBox x:Name="txt_preview" IsReadOnly="True" TextWrapping="Wrap" Height="44" VerticalScrollBarVisibility="Auto"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <Button x:Name="btn_done" Content="Done" Width="80" Height="26" Margin="0,0,6,0" Click="btn_done_Click"/>
+            <Button x:Name="btn_cancel" Content="Cancel" Width="80" Height="26" Click="btn_cancel_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

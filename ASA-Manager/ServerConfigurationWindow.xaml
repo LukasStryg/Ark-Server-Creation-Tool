@@ -37,11 +37,13 @@
             <TextBox x:Name="txt_commandLine" IsEnabled="False" Grid.Column="1" Margin="10,0,10,10" TextWrapping="WrapWithOverflow" VerticalContentAlignment="Center" FontSize="12" Height="63" VerticalAlignment="Bottom"/>
             <CheckBox x:Name="chkbx_overrideCommandline" Content="Manually define launch arguments" HorizontalAlignment="Left" Margin="10,0,0,78" Grid.Column="1" Height="15" VerticalAlignment="Bottom" Click="chkbx_overrideCommandline_Click" Width="203"/>
             <Label x:Name="lbl_invalidPort" Grid.Column="1" Content="⚠️ Invalid Value" HorizontalAlignment="Left" Margin="95,181,0,0" VerticalAlignment="Top" FontSize="10" Height="26" VerticalContentAlignment="Center" Width="82"/>
-            <Label Content="Mods" Margin="10,359,0,129" HorizontalContentAlignment="Right" VerticalContentAlignment="Center"/>
-            <ListBox x:Name="lst_modIds" Grid.Column="1" Margin="10,359,10,129" SelectionMode="Multiple" SelectionChanged="lst_modIds_SelectionChanged"/>
-            <TextBox x:Name="txt_addMod" Grid.Column="1" Margin="10,0,119,98" TextWrapping="Wrap" VerticalAlignment="Bottom" Height="26" VerticalContentAlignment="Center" FontSize="12" TextChanged="TextChanged"/>
-            <Button x:Name="btn_addMod" Grid.Column="1" Content="Add Mod" Margin="0,0,43,98" VerticalAlignment="Bottom" HorizontalAlignment="Right" Width="71" Height="26" Click="btn_addMod_Click"/>
-            <Button x:Name="btn_removeMod" IsEnabled="False" ToolTip="Remove Selected Mod" Grid.Column="1" Content="🗑️" Margin="0,0,10,98" VerticalAlignment="Bottom" HorizontalAlignment="Right" Width="28" Height="26" RenderTransformOrigin="0.494,1.346" Click="btn_removeMod_Click"/>
+            <Label Content="Mods" Margin="10,340,0,0" VerticalAlignment="Top" Height="26" HorizontalContentAlignment="Right" VerticalContentAlignment="Center"/>
+            <Button x:Name="btn_manageMods" Grid.Column="1" Content="Manage Mods…" Margin="10,340,10,0" VerticalAlignment="Top" Height="26" Click="btn_manageMods_Click"/>
+            <Label Content="RCON Port" Margin="10,371,0,0" VerticalAlignment="Top" Height="26" HorizontalContentAlignment="Right"/>
+            <TextBox x:Name="txt_rconPort" Grid.Column="1" Margin="10,371,0,0" VerticalAlignment="Top" Height="26" Width="80" HorizontalAlignment="Left" VerticalContentAlignment="Center" FontSize="12" TextChanged="TextChanged"/>
+            <Label Content="Admin Password" Margin="10,402,0,0" VerticalAlignment="Top" Height="26" HorizontalContentAlignment="Right"/>
+            <TextBox x:Name="txt_adminPassword" Grid.Column="1" ToolTip="RCON/admin password (doubles as the RCON password). Stored in the tool's config." Margin="10,402,90,0" VerticalAlignment="Top" Height="26" VerticalContentAlignment="Center" FontSize="12" TextChanged="TextChanged"/>
+            <Button x:Name="btn_regenPassword" Grid.Column="1" Content="Regenerate" Margin="0,402,10,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="75" Height="26" Click="btn_regenPassword_Click"/>
             <Label Content="Max Players" Margin="10,212,0,0" VerticalAlignment="Top" Height="26" HorizontalContentAlignment="Right"/>
             <TextBox x:Name="txt_slots" Grid.Column="1" Margin="10,212,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="26" VerticalContentAlignment="Center" FontSize="12" TextChanged="TextChanged" HorizontalAlignment="Left" Width="80" PreviewTextInput="txt_slot_PreviewTextInput"/>
             <Label x:Name="lbl_invalidSlots" Grid.Column="1" Content="⚠️ Invalid Value" HorizontalAlignment="Left" Margin="95,212,0,0" VerticalAlignment="Top" FontSize="10" Height="26" VerticalContentAlignment="Center" Width="82"/>

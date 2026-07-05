@@ -35,6 +35,7 @@ namespace ARKServerCreationTool
             chk_AllowAutoLaunch.IsChecked = ASCTGlobalConfig.Instance.AllowAutomaticStart;
             chk_PromptStartAllServers.IsChecked = ASCTGlobalConfig.Instance.PromptStartAllServersInCluster;
             txt_clusterDir.Text = ASCTGlobalConfig.Instance.GlobalClusterDir;
+            txt_curseforgeKey.Text = ASCTGlobalConfig.Instance.CurseForgeApiKey;
 
             this.firstLaunch = firstLaunch;
         }
@@ -52,6 +53,7 @@ namespace ARKServerCreationTool
             ASCTGlobalConfig.Instance.GlobalClusterDir = txt_clusterDir.Text;
             ASCTGlobalConfig.Instance.AllowAutomaticStart = chk_AllowAutoLaunch.IsChecked.Value;
             ASCTGlobalConfig.Instance.PromptStartAllServersInCluster = chk_PromptStartAllServers.IsChecked.Value;
+            ASCTGlobalConfig.Instance.CurseForgeApiKey = txt_curseforgeKey.Text.Trim();
             ASCTGlobalConfig.Instance.Save();
 
             ASCTTools.FindOrCreateWindow<ServerList>();
@@ -122,6 +124,26 @@ namespace ARKServerCreationTool
                 {
                     txt_clusterDir.Text = dialog.SelectedPath;
                 }
+            }
+        }
+
+        private async void btn_verifyKey_Click(object sender, RoutedEventArgs e)
+        {
+            string key = txt_curseforgeKey.Text.Trim();
+            if (string.IsNullOrEmpty(key)) { MessageBox.Show("Enter an API key first."); return; }
+
+            btn_verifyKey.IsEnabled = false;
+            object? previous = btn_verifyKey.Content;
+            btn_verifyKey.Content = "Checking…";
+            try
+            {
+                var (ok, message) = await AppServices.CurseForge(key).ValidateKeyAsync();
+                MessageBox.Show(message, ok ? "API key valid" : "API key check");
+            }
+            finally
+            {
+                btn_verifyKey.Content = previous;
+                btn_verifyKey.IsEnabled = true;
             }
         }
     }

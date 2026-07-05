@@ -17,6 +17,8 @@ using System.Windows.Threading;
 using static ARKServerCreationTool.ASCTTools;
 using System.Diagnostics.Metrics;
 using System.Windows.Media.Animation;
+using ARKServerCreationTool.Services.Rcon;
+using ARKServerCreationTool.Services.Servers;
 
 namespace ARKServerCreationTool
 {
@@ -51,6 +53,8 @@ namespace ARKServerCreationTool
 
             InitializeComponent();
 
+            controlProgress = new Progress<string>(msg => lbl_serverStatus.Content = msg);
+
             lbl_serverName.Content = $"{targetServer.Name}";
             lbl_serverCluster.Content = $"{(targetServer.ClusterKey != string.Empty ? targetServer.ClusterKey : "Not Clustered")}";
 
@@ -58,6 +62,8 @@ namespace ARKServerCreationTool
         }
 
         RunButtonStatus buttonStatus = RunButtonStatus.Unknown;
+
+        private readonly Progress<string> controlProgress;
 
         private void UpdateStatus()
         {
@@ -163,36 +169,44 @@ namespace ARKServerCreationTool
             }
         }
 
-        private void btn_start_Click(object sender, RoutedEventArgs e)
+        private async void btn_start_Click(object sender, RoutedEventArgs e)
         {
-            bool actOnCluster = chk_entireCluster.IsChecked.Value;
-
-            if (actOnCluster)
+            btn_start.IsEnabled = false;
+            try
             {
-                StartStopEntireCluster(targetServer.ClusterKey, true);
+                if (chk_entireCluster.IsChecked.Value)
+                {
+                    StartStopEntireCluster(targetServer.ClusterKey, true);
+                    foreach (var s in config.Servers.Where(s => s.ClusterKey == targetServer.ClusterKey))
+                        await Services.Servers.ServerControl.SnapshotAfterStartAsync(s);
+                }
+                else
+                {
+                    targetServer.ProcessManager.Start();
+                    await Services.Servers.ServerControl.SnapshotAfterStartAsync(targetServer);
+                }
+                config.Save();
             }
-            else
-            {
-                targetServer.ProcessManager.Start();
-            }
-
-            UpdateStatus();
+            finally { btn_start.IsEnabled = true; UpdateStatus(); }
         }
 
-        private void btn_stop_Click(object sender, RoutedEventArgs e)
+        private async void btn_stop_Click(object sender, RoutedEventArgs e)
         {
-            bool actOnCluster = chk_entireCluster.IsChecked.Value;
-
-            if (actOnCluster)
+            btn_stop.IsEnabled = false;
+            btn_forceStop.IsEnabled = false;
+            try
             {
-                StartStopEntireCluster(targetServer.ClusterKey, false);
+                if (chk_entireCluster.IsChecked.Value)
+                {
+                    lbl_serverStatus.Content = "Stopping cluster…";
+                    await Services.Servers.ServerControl.GracefulStopManyAsync(config.Servers.Where(s => s.ClusterKey == targetServer.ClusterKey));
+                }
+                else
+                {
+                    await Services.Servers.ServerControl.GracefulStopAsync(targetServer, controlProgress);
+                }
             }
-            else
-            {
-                targetServer.ProcessManager.Stop();
-            }
-
-            UpdateStatus();
+            finally { btn_stop.IsEnabled = true; btn_forceStop.IsEnabled = true; UpdateStatus(); }
         }
 
         private void StartStopEntireCluster(string clusterKey, bool start) //set start to true to start all servers in cluster, false to stop them
@@ -215,6 +229,51 @@ namespace ARKServerCreationTool
         private void chk_entireCluster_Click(object sender, RoutedEventArgs e)
         {
             UpdateStatus();
+        }
+
+        private void btn_forceStop_Click(object sender, RoutedEventArgs e)
+        {
+            var confirm = MessageBox.Show(
+                "Force-kill the server process now WITHOUT saving? Use this only if the server is hung — unsaved progress since the last save may be lost.",
+                "Force Stop", MessageBoxButton.YesNo);
+            if (confirm != MessageBoxResult.Yes) return;
+
+            if (chk_entireCluster.IsChecked.Value)
+                StartStopEntireCluster(targetServer.ClusterKey, false);
+            else
+                targetServer.ProcessManager.Stop();
+
+            UpdateStatus();
+        }
+
+        private async void btn_restartApply_Click(object sender, RoutedEventArgs e)
+        {
+            btn_restartApply.IsEnabled = false;
+            try
+            {
+                var client = AppServices.CurseForge();
+                if (client.HasKey)
+                {
+                    try
+                    {
+                        await AppServices.MetadataCache.RefreshAsync(targetServer.Mods.Select(m => m.ProjectId), client, DateTimeOffset.UtcNow);
+                        AppServices.MetadataCache.Save();
+                    }
+                    catch (Exception ex) { MessageBox.Show($"Mod metadata refresh failed: {ex.Message}"); }
+                }
+
+                bool ok = await Services.Servers.ServerControl.For(targetServer).RestartToApplyAsync(TimeSpan.FromSeconds(60), controlProgress);
+                if (ok)
+                {
+                    targetServer.SnapshotRunningModVersions(AppServices.MetadataCache);
+                    config.Save();
+                }
+                else
+                {
+                    MessageBox.Show("Restart failed — check the server.");
+                }
+            }
+            finally { btn_restartApply.IsEnabled = true; UpdateStatus(); }
         }
     }
 }

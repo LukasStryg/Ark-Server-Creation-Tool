@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, "feature/**" ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Build (Release)
+        run: dotnet build "ARK Server Creation Tool.sln" -c Release
+
+      - name: Test
+        run: dotnet test "ARK Server Creation Tool.sln" -c Release --no-build --verbosity normal
