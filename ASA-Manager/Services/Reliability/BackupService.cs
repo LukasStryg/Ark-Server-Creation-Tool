@@ -73,6 +73,17 @@ namespace ARKServerCreationTool.Services.Reliability
             }
         }
 
+        // Redundant/transient files ARK regenerates and a restore never needs: the rolling world backups
+        // (.arkrbf / .arkbf — the extension varies by ASA build, kept per MaxNumOfSaveBackups), the
+        // anti-corruption backup (.bak), the per-player/tribe safety copies (.profilebak / .tribebak), and
+        // the mid-save scratch file (.tmp). Everything else (.ark, .arkprofile, .arktribe, .arktributetribe,
+        // paintings, ...) is copied — we err toward keeping anything not known to be redundant.
+        private static readonly string[] RedundantSuffixes =
+            { ".arkrbf", ".arkbf", ".bak", ".profilebak", ".tribebak", ".tmp" };
+
+        private static bool IsRedundantBackup(string file)
+            => RedundantSuffixes.Any(s => file.EndsWith(s, StringComparison.OrdinalIgnoreCase));
+
         private static void CopyDirectory(string source, string dest)
         {
             if (!Directory.Exists(source)) return;
@@ -81,9 +92,7 @@ namespace ARKServerCreationTool.Services.Reliability
                 Directory.CreateDirectory(dir.Replace(source, dest));
             foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
             {
-                // Skip ARK's own rolling world-save backups (.arkbf, up to MaxNumOfSaveBackups). A restore
-                // needs only the live save, profiles, and tribes, so copying these just backs up backups.
-                if (file.EndsWith(".arkbf", StringComparison.OrdinalIgnoreCase)) continue;
+                if (IsRedundantBackup(file)) continue;
                 File.Copy(file, file.Replace(source, dest), overwrite: true);
             }
         }
