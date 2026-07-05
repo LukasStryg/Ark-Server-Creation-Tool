@@ -16,23 +16,23 @@ namespace ARKServerCreationTool.Services.Reliability
         public BackupService(ASCTGlobalConfig config) => _config = config;
 
         public async Task BackupTargetAsync(ScheduleTargetKind kind, IReadOnlyList<ASCTServerConfig> targetServers,
-            string label, DateTime now, IProgress<string>? progress = null)
+            DateTime now, IProgress<string>? progress = null)
         {
             string timestamp = BackupPaths.Timestamp(now);
-            bool includeClusterDir = kind != ScheduleTargetKind.Server;
 
+            // Each server backs up into its OWN folder (BackupRoot/<serverName>/<timestamp>/), so a single
+            // backup and a Backup All build the same per-server history — no duplicate "All" tree.
             foreach (var server in targetServers)
-                await BackupServerAsync(server, label, timestamp, progress);
+                await BackupServerAsync(server, timestamp, progress);
 
-            if (includeClusterDir)
-                CopyDirectory(_config.GlobalClusterDir,
-                    Path.Combine(BackupPaths.SnapshotFolder(_config.BackupRoot, label, timestamp), "_cluster"));
+            // The shared cluster dir gets its own history, copied once for cluster / all backups.
+            if (kind != ScheduleTargetKind.Server)
+                await BackupClusterDirAsync(timestamp, progress);
 
-            ApplyRotation(label);
-            ReliabilityLog.Append($"Backup complete: {label} ({timestamp})");
+            ReliabilityLog.Append($"Backup complete: {kind} ({timestamp})");
         }
 
-        private async Task BackupServerAsync(ASCTServerConfig server, string label, string timestamp, IProgress<string>? progress)
+        private async Task BackupServerAsync(ASCTServerConfig server, string timestamp, IProgress<string>? progress)
         {
             progress?.Report($"Backing up {server.Name}...");
             if (server.IsRunning)
@@ -48,8 +48,18 @@ namespace ARKServerCreationTool.Services.Reliability
             }
 
             string savedArks = Path.Combine(server.GameDirectory, @"ShooterGame\Saved\SavedArks");
-            string dest = Path.Combine(BackupPaths.SnapshotFolder(_config.BackupRoot, label, timestamp), server.Name);
+            string dest = BackupPaths.SnapshotFolder(_config.BackupRoot, server.Name, timestamp);
             await Task.Run(() => CopyDirectory(savedArks, dest));
+            ApplyRotation(server.Name);
+        }
+
+        private async Task BackupClusterDirAsync(string timestamp, IProgress<string>? progress)
+        {
+            if (string.IsNullOrWhiteSpace(_config.GlobalClusterDir) || !Directory.Exists(_config.GlobalClusterDir)) return;
+            progress?.Report("Backing up cluster data...");
+            string dest = BackupPaths.SnapshotFolder(_config.BackupRoot, "_ClusterData", timestamp);
+            await Task.Run(() => CopyDirectory(_config.GlobalClusterDir, dest));
+            ApplyRotation("_ClusterData");
         }
 
         private void ApplyRotation(string label)

@@ -99,7 +99,7 @@ namespace ARKServerCreationTool.Services.Reliability
 
             if (task.Type == ScheduledTaskType.Backup)
             {
-                await _backups.BackupTargetAsync(task.TargetKind, servers, label, now);
+                await _backups.BackupTargetAsync(task.TargetKind, servers, now);
                 return;
             }
 

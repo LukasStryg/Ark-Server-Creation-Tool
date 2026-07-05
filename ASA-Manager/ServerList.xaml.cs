@@ -89,7 +89,7 @@ namespace ARKServerCreationTool
             btn_backupAll.IsEnabled = false;
             try
             {
-                await AppServices.Backups().BackupTargetAsync(Models.ScheduleTargetKind.All, config.Servers.ToList(), "All", System.DateTime.Now);
+                await AppServices.Backups().BackupTargetAsync(Models.ScheduleTargetKind.All, config.Servers.ToList(), System.DateTime.Now);
                 System.Windows.MessageBox.Show("Backup All complete.");
             }
             catch (Exception ex) { System.Windows.MessageBox.Show($"Backup failed: {ex.Message}"); }

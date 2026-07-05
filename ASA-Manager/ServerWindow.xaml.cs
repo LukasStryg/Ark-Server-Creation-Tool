@@ -293,13 +293,12 @@ namespace ARKServerCreationTool
                 if (chk_entireCluster.IsChecked == true)
                 {
                     var members = config.Servers.Where(s => s.ClusterKey == targetServer.ClusterKey).ToList();
-                    string label = string.IsNullOrEmpty(targetServer.ClusterKey) ? targetServer.Name : targetServer.ClusterKey;
-                    await AppServices.Backups().BackupTargetAsync(Models.ScheduleTargetKind.Cluster, members, label, System.DateTime.Now);
+                    await AppServices.Backups().BackupTargetAsync(Models.ScheduleTargetKind.Cluster, members, System.DateTime.Now);
                 }
                 else
                 {
                     await AppServices.Backups().BackupTargetAsync(Models.ScheduleTargetKind.Server,
-                        new System.Collections.Generic.List<ASCTServerConfig> { targetServer }, targetServer.Name, System.DateTime.Now);
+                        new System.Collections.Generic.List<ASCTServerConfig> { targetServer }, System.DateTime.Now);
                 }
                 System.Windows.MessageBox.Show("Backup complete.");
             }
