@@ -169,22 +169,25 @@ namespace ARKServerCreationTool
             }
         }
 
-        private void btn_start_Click(object sender, RoutedEventArgs e)
+        private async void btn_start_Click(object sender, RoutedEventArgs e)
         {
-            bool actOnCluster = chk_entireCluster.IsChecked.Value;
-
-            if (actOnCluster)
+            btn_start.IsEnabled = false;
+            try
             {
-                StartStopEntireCluster(targetServer.ClusterKey, true);
-            }
-            else
-            {
-                targetServer.ProcessManager.Start();
-                targetServer.SnapshotRunningModVersions(AppServices.MetadataCache);
+                if (chk_entireCluster.IsChecked.Value)
+                {
+                    StartStopEntireCluster(targetServer.ClusterKey, true);
+                    foreach (var s in config.Servers.Where(s => s.ClusterKey == targetServer.ClusterKey))
+                        await Services.Servers.ServerControl.SnapshotAfterStartAsync(s);
+                }
+                else
+                {
+                    targetServer.ProcessManager.Start();
+                    await Services.Servers.ServerControl.SnapshotAfterStartAsync(targetServer);
+                }
                 config.Save();
             }
-
-            UpdateStatus();
+            finally { btn_start.IsEnabled = true; UpdateStatus(); }
         }
 
         private async void btn_stop_Click(object sender, RoutedEventArgs e)

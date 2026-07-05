@@ -179,68 +179,80 @@ namespace ARKServerCreationTool
                 return;
             }
 
-            ASCTServerConfig selectedServer = ((ASCTServerConfig)dg_ServerList.SelectedItem);
-            bool selectedRunning = selectedServer.ProcessManager.IsRunning;
-
-            var cluster = config.Servers.AsParallel().Where(s => s.ClusterKey == selectedServer.ClusterKey && selectedRunning == s.ProcessManager.IsRunning);
-
-            bool launchOne = true; //Set to false if we act on the cluster
-
-            if (selectedServer.ClusterKey != string.Empty && cluster.Count() > 1)
+            try
             {
-                MessageBoxResult result = MessageBoxResult.No;
+                ASCTServerConfig selectedServer = ((ASCTServerConfig)dg_ServerList.SelectedItem);
+                bool selectedRunning = selectedServer.ProcessManager.IsRunning;
 
-                if (config.PromptStartAllServersInCluster)
+                var cluster = config.Servers.AsParallel().Where(s => s.ClusterKey == selectedServer.ClusterKey && selectedRunning == s.ProcessManager.IsRunning);
+
+                bool launchOne = true; //Set to false if we act on the cluster
+
+                if (selectedServer.ClusterKey != string.Empty && cluster.Count() > 1)
                 {
-                    result = System.Windows.MessageBox.Show("Would you like to perform this action on all of the servers in the same cluster?", "", MessageBoxButton.YesNo);
+                    MessageBoxResult result = MessageBoxResult.No;
+
+                    if (config.PromptStartAllServersInCluster)
+                    {
+                        result = System.Windows.MessageBox.Show("Would you like to perform this action on all of the servers in the same cluster?", "", MessageBoxButton.YesNo);
+                    }
+
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        ASCTServerConfig[] serversInCluster = cluster.ToArray();
+
+                        if (runButtonStatus == RunButtonStatus.Run)
+                        {
+                            Parallel.For(0, serversInCluster.Length, i => serversInCluster[i].ProcessManager.Start());
+                            foreach (var s in serversInCluster) await Services.Servers.ServerControl.SnapshotAfterStartAsync(s);
+                            config.Save();
+                        }
+                        else if (runButtonStatus == RunButtonStatus.Stop)
+                        {
+                            foreach (var s in serversInCluster) s.TransientStatus = "Stopping…";
+                            UpdateList();
+                            await Services.Servers.ServerControl.GracefulStopManyAsync(serversInCluster);
+                            foreach (var s in serversInCluster) s.TransientStatus = null;
+                        }
+
+                        launchOne = false;
+                    }
                 }
 
-                if (result == MessageBoxResult.Yes)
+                if (launchOne)
                 {
-                    ASCTServerConfig[] serversInCluster = cluster.ToArray();
-
                     if (runButtonStatus == RunButtonStatus.Run)
                     {
-                        Parallel.For(0, serversInCluster.Length, i => serversInCluster[i].ProcessManager.Start());
+                        selectedServer.ProcessManager.Start();
+                        await Services.Servers.ServerControl.SnapshotAfterStartAsync(selectedServer);
+                        config.Save();
                     }
                     else if (runButtonStatus == RunButtonStatus.Stop)
                     {
-                        foreach (var s in serversInCluster) s.TransientStatus = "Stopping…";
+                        selectedServer.TransientStatus = "Stopping…";
                         UpdateList();
-                        await Services.Servers.ServerControl.GracefulStopManyAsync(serversInCluster);
-                        foreach (var s in serversInCluster) s.TransientStatus = null;
+                        await Services.Servers.ServerControl.GracefulStopAsync(selectedServer);
+                        selectedServer.TransientStatus = null;
                     }
-
-                    launchOne = false;
                 }
             }
-            
-            if (launchOne)
+            catch (Exception ex)
             {
-                if (runButtonStatus == RunButtonStatus.Run)
-                {
-                    selectedServer.ProcessManager.Start();
-                }
-                else if (runButtonStatus == RunButtonStatus.Stop)
-                {
-                    selectedServer.TransientStatus = "Stopping…";
-                    UpdateList();
-                    await Services.Servers.ServerControl.GracefulStopAsync(selectedServer);
-                    selectedServer.TransientStatus = null;
-                }
+                System.Windows.MessageBox.Show($"Operation failed: {ex.Message}");
             }
-
-            UpdateList();
+            finally
+            {
+                foreach (var s in config.Servers) s.TransientStatus = null;
+                UpdateList();
+            }
         }
 
-        private void btn_startAll_Click(object sender, RoutedEventArgs e)
+        private async void btn_startAll_Click(object sender, RoutedEventArgs e)
         {
-            Parallel.For(0, config.Servers.Count, i =>
-            {
-                config.Servers[i].ProcessManager.Start();
-            });
+            Parallel.For(0, config.Servers.Count, i => config.Servers[i].ProcessManager.Start());
+            foreach (var s in config.Servers) await Services.Servers.ServerControl.SnapshotAfterStartAsync(s);
+            config.Save();
             UpdateList();
-
         }
 
         private async void btn_stopAll_Click(object sender, RoutedEventArgs e)
@@ -248,9 +260,19 @@ namespace ARKServerCreationTool
             var stopping = config.Servers.Where(s => s.IsRunning).ToList();
             foreach (var s in stopping) s.TransientStatus = "Stopping…";
             UpdateList();
-            await Services.Servers.ServerControl.GracefulStopManyAsync(config.Servers);
-            foreach (var s in stopping) s.TransientStatus = null;
-            UpdateList();
+            try
+            {
+                await Services.Servers.ServerControl.GracefulStopManyAsync(config.Servers);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Stop all failed: {ex.Message}");
+            }
+            finally
+            {
+                foreach (var s in stopping) s.TransientStatus = null;
+                UpdateList();
+            }
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
