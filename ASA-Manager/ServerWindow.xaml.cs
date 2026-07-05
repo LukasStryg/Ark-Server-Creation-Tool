@@ -53,7 +53,7 @@ namespace ARKServerCreationTool
 
             InitializeComponent();
 
-            controlProgress = new Progress<string>(msg => lbl_controlStatus.Text = msg);
+            controlProgress = new Progress<string>(msg => lbl_serverStatus.Content = msg);
 
             lbl_serverName.Content = $"{targetServer.Name}";
             lbl_serverCluster.Content = $"{(targetServer.ClusterKey != string.Empty ? targetServer.ClusterKey : "Not Clustered")}";
@@ -195,14 +195,12 @@ namespace ARKServerCreationTool
             {
                 if (chk_entireCluster.IsChecked.Value)
                 {
-                    lbl_controlStatus.Text = "Gracefully stopping cluster…";
+                    lbl_serverStatus.Content = "Stopping cluster…";
                     await Services.Servers.ServerControl.GracefulStopManyAsync(config.Servers.Where(s => s.ClusterKey == targetServer.ClusterKey));
-                    lbl_controlStatus.Text = "Cluster stopped.";
                 }
                 else
                 {
-                    var result = await Services.Servers.ServerControl.GracefulStopAsync(targetServer, controlProgress);
-                    lbl_controlStatus.Text = $"Stop result: {result}";
+                    await Services.Servers.ServerControl.GracefulStopAsync(targetServer, controlProgress);
                 }
             }
             finally { btn_stop.IsEnabled = true; btn_forceStop.IsEnabled = true; UpdateStatus(); }
@@ -242,7 +240,6 @@ namespace ARKServerCreationTool
             else
                 targetServer.ProcessManager.Stop();
 
-            lbl_controlStatus.Text = "Force-stopped.";
             UpdateStatus();
         }
 
@@ -259,7 +256,7 @@ namespace ARKServerCreationTool
                         await AppServices.MetadataCache.RefreshAsync(targetServer.Mods.Select(m => m.ProjectId), client, DateTimeOffset.UtcNow);
                         AppServices.MetadataCache.Save();
                     }
-                    catch (Exception ex) { lbl_controlStatus.Text = $"Metadata refresh failed: {ex.Message}"; }
+                    catch (Exception ex) { MessageBox.Show($"Mod metadata refresh failed: {ex.Message}"); }
                 }
 
                 bool ok = await Services.Servers.ServerControl.For(targetServer).RestartToApplyAsync(TimeSpan.FromSeconds(60), controlProgress);
@@ -268,7 +265,10 @@ namespace ARKServerCreationTool
                     targetServer.SnapshotRunningModVersions(AppServices.MetadataCache);
                     config.Save();
                 }
-                lbl_controlStatus.Text = ok ? "Restarted; mods re-download on boot." : "Restart failed; check the server.";
+                else
+                {
+                    MessageBox.Show("Restart failed — check the server.");
+                }
             }
             finally { btn_restartApply.IsEnabled = true; UpdateStatus(); }
         }

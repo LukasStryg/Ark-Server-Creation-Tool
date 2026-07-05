@@ -29,7 +29,6 @@
                     <Button x:Name="btn_restartApply" Content="Restart (apply mods)" Margin="0,4,10,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="200" Height="28" Click="btn_restartApply_Click"/>
                 </Grid>
             </GroupBox>
-            <TextBlock x:Name="lbl_controlStatus" Margin="4,6,4,0" TextWrapping="Wrap" Foreground="#FF444444" MinHeight="16"/>
         </StackPanel>
     </Grid>
 </Window>
