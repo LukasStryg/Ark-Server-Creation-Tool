@@ -80,7 +80,12 @@ namespace ARKServerCreationTool.Services.Reliability
             foreach (var dir in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
                 Directory.CreateDirectory(dir.Replace(source, dest));
             foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
+            {
+                // Skip ARK's own rolling world-save backups (.arkbf, up to MaxNumOfSaveBackups). A restore
+                // needs only the live save, profiles, and tribes, so copying these just backs up backups.
+                if (file.EndsWith(".arkbf", StringComparison.OrdinalIgnoreCase)) continue;
                 File.Copy(file, file.Replace(source, dest), overwrite: true);
+            }
         }
     }
 }
