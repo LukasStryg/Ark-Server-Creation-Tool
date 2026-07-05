@@ -29,6 +29,9 @@
                     <Button x:Name="btn_restartApply" Content="Restart (apply mods)" Margin="0,4,10,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="200" Height="28" Click="btn_restartApply_Click"/>
                 </Grid>
             </GroupBox>
+            <GroupBox Header="Backup" Margin="0,8,0,0">
+                <Button x:Name="btn_backupNow" Content="Backup Now" Height="28" Margin="4" HorizontalAlignment="Left" Width="200" Click="btn_backupNow_Click"/>
+            </GroupBox>
         </StackPanel>
     </Grid>
 </Window>

@@ -70,6 +70,18 @@ namespace ARKServerCreationTool
 
         public string CurseForgeApiKey { get; set; } = string.Empty;
 
+        public List<ScheduledTask> ScheduledTasks { get; set; } = new();
+
+        public string BackupRoot { get; set; } = Path.Combine(Directory.GetCurrentDirectory(), "Backups");
+        public int BackupKeepCount { get; set; } = 24;
+
+        public int[] RestartWarningMinutes { get; set; } = { 15, 10, 5, 1 };
+
+        public bool CrashAutoRestartEnabled { get; set; } = true;
+        public int CrashThresholdCount { get; set; } = 3;
+        public int CrashWindowMinutes { get; set; } = 5;
+        public int CrashRestartBackoffSeconds { get; set; } = 10;
+
         public List<ASCTServerConfig> Servers = new List<ASCTServerConfig>();
 
         public ushort NextAvailablePort()
@@ -154,6 +166,7 @@ namespace ARKServerCreationTool
         [JsonIgnore] public string StatusText => TransientStatus ?? IsRunningToString;
 
         public bool StartAutomatically { get; set; } = false;
+        public bool ExcludeFromBulkStart { get; set; } = false;
 
         public int ID { get; private set; } //to be used as a primary key
         public string Name { get; set; } //friendly name for identifying the server to the user

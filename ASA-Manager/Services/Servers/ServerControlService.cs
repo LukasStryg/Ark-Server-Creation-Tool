@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using ARKServerCreationTool.Services.Rcon;
+using ARKServerCreationTool.Services.Reliability;
 
 namespace ARKServerCreationTool.Services.Servers
 {
@@ -58,6 +60,31 @@ namespace ARKServerCreationTool.Services.Servers
             if (stop == StopResult.Failed) return false;
             progress?.Report("Starting server (mods re-download on boot)...");
             return _process.Start();
+        }
+
+        /// <summary>Opens a short-lived RCON connection and broadcasts a center-screen message. Best-effort.</summary>
+        public async Task BroadcastAsync(string message, CancellationToken ct = default)
+        {
+            try
+            {
+                using var rcon = _rconFactory();
+                if (await rcon.ConnectAndAuthenticateAsync(_adminPassword, ct))
+                    await rcon.ExecuteAsync($"Broadcast {message}", ct);
+            }
+            catch { /* best-effort warning; a failed broadcast must not abort the restart */ }
+        }
+
+        /// <summary>Broadcasts each countdown step (waiting between them via the injected delay), then restarts.</summary>
+        public async Task<bool> RestartWithCountdownAsync(IReadOnlyList<RestartStep> steps, TimeSpan stopTimeout,
+            Func<TimeSpan, CancellationToken, Task> delay, IProgress<string>? progress = null, CancellationToken ct = default)
+        {
+            foreach (var step in steps)
+            {
+                progress?.Report(step.Message);
+                await BroadcastAsync(step.Message, ct);
+                await delay(step.WaitAfter, ct);
+            }
+            return await RestartToApplyAsync(stopTimeout, progress, ct);
         }
 
         private async Task<bool> WaitForStopAsync(TimeSpan timeout, CancellationToken ct)
