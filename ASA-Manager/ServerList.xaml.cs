@@ -81,6 +81,21 @@ namespace ARKServerCreationTool
             ASCTTools.FindOrCreateWindow<ASCTConfigWindow>();
         }
 
+        private void btn_reliability_Click(object sender, RoutedEventArgs e)
+            => new ReliabilityWindow { Owner = this }.ShowDialog();
+
+        private async void btn_backupAll_Click(object sender, RoutedEventArgs e)
+        {
+            btn_backupAll.IsEnabled = false;
+            try
+            {
+                await AppServices.Backups().BackupTargetAsync(Models.ScheduleTargetKind.All, config.Servers.ToList(), "All", System.DateTime.Now);
+                System.Windows.MessageBox.Show("Backup All complete.");
+            }
+            catch (Exception ex) { System.Windows.MessageBox.Show($"Backup failed: {ex.Message}"); }
+            finally { btn_backupAll.IsEnabled = true; }
+        }
+
         private void dg_ServerList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             UpdateButtons();

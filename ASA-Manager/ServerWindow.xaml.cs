@@ -284,5 +284,27 @@ namespace ARKServerCreationTool
             }
             finally { AppServices.Coordinator.MarkOperation(targetServer.ID, false); btn_restartApply.IsEnabled = true; UpdateStatus(); }
         }
+
+        private async void btn_backupNow_Click(object sender, RoutedEventArgs e)
+        {
+            btn_backupNow.IsEnabled = false;
+            try
+            {
+                if (chk_entireCluster.IsChecked == true)
+                {
+                    var members = config.Servers.Where(s => s.ClusterKey == targetServer.ClusterKey).ToList();
+                    string label = string.IsNullOrEmpty(targetServer.ClusterKey) ? targetServer.Name : targetServer.ClusterKey;
+                    await AppServices.Backups().BackupTargetAsync(Models.ScheduleTargetKind.Cluster, members, label, System.DateTime.Now);
+                }
+                else
+                {
+                    await AppServices.Backups().BackupTargetAsync(Models.ScheduleTargetKind.Server,
+                        new System.Collections.Generic.List<ASCTServerConfig> { targetServer }, targetServer.Name, System.DateTime.Now);
+                }
+                System.Windows.MessageBox.Show("Backup complete.");
+            }
+            catch (System.Exception ex) { System.Windows.MessageBox.Show($"Backup failed: {ex.Message}"); }
+            finally { btn_backupNow.IsEnabled = true; }
+        }
     }
 }
