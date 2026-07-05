@@ -174,17 +174,10 @@ namespace ARKServerCreationTool
             btn_start.IsEnabled = false;
             try
             {
-                if (chk_entireCluster.IsChecked.Value)
-                {
-                    StartStopEntireCluster(targetServer.ClusterKey, true);
-                    foreach (var s in config.Servers.Where(s => s.ClusterKey == targetServer.ClusterKey))
-                        await Services.Servers.ServerControl.SnapshotAfterStartAsync(s);
-                }
-                else
-                {
-                    targetServer.ProcessManager.Start();
-                    await Services.Servers.ServerControl.SnapshotAfterStartAsync(targetServer);
-                }
+                var targets = chk_entireCluster.IsChecked.Value
+                    ? config.Servers.Where(s => s.ClusterKey == targetServer.ClusterKey).ToList()
+                    : new List<ASCTServerConfig> { targetServer };
+                await AppServices.Coordinator.StartStaggeredAsync(targets, UpdateStatus);
                 config.Save();
             }
             finally { btn_start.IsEnabled = true; UpdateStatus(); }
@@ -194,19 +187,27 @@ namespace ARKServerCreationTool
         {
             btn_stop.IsEnabled = false;
             btn_forceStop.IsEnabled = false;
+            var targets = chk_entireCluster.IsChecked.Value
+                ? config.Servers.Where(s => s.ClusterKey == targetServer.ClusterKey).ToList()
+                : new List<ASCTServerConfig> { targetServer };
+            foreach (var s in targets) AppServices.Coordinator.NotifyStopping(s.ID);
             try
             {
                 if (chk_entireCluster.IsChecked.Value)
                 {
                     lbl_serverStatus.Content = "Stopping cluster…";
-                    await Services.Servers.ServerControl.GracefulStopManyAsync(config.Servers.Where(s => s.ClusterKey == targetServer.ClusterKey));
+                    await Services.Servers.ServerControl.GracefulStopManyAsync(targets);
                 }
                 else
                 {
                     await Services.Servers.ServerControl.GracefulStopAsync(targetServer, controlProgress);
                 }
             }
-            finally { btn_stop.IsEnabled = true; btn_forceStop.IsEnabled = true; UpdateStatus(); }
+            finally
+            {
+                foreach (var s in targets) AppServices.Coordinator.NotifyStopped(s.ID);
+                btn_stop.IsEnabled = true; btn_forceStop.IsEnabled = true; UpdateStatus();
+            }
         }
 
         private void StartStopEntireCluster(string clusterKey, bool start) //set start to true to start all servers in cluster, false to stop them
@@ -238,17 +239,24 @@ namespace ARKServerCreationTool
                 "Force Stop", MessageBoxButton.YesNo);
             if (confirm != MessageBoxResult.Yes) return;
 
+            var targets = chk_entireCluster.IsChecked.Value
+                ? config.Servers.Where(s => s.ClusterKey == targetServer.ClusterKey).ToList()
+                : new List<ASCTServerConfig> { targetServer };
+            foreach (var s in targets) AppServices.Coordinator.NotifyStopping(s.ID);
+
             if (chk_entireCluster.IsChecked.Value)
                 StartStopEntireCluster(targetServer.ClusterKey, false);
             else
                 targetServer.ProcessManager.Stop();
 
+            foreach (var s in targets) AppServices.Coordinator.NotifyStopped(s.ID);
             UpdateStatus();
         }
 
         private async void btn_restartApply_Click(object sender, RoutedEventArgs e)
         {
             btn_restartApply.IsEnabled = false;
+            AppServices.Coordinator.MarkOperation(targetServer.ID, true);
             try
             {
                 var client = AppServices.CurseForge();
@@ -265,6 +273,7 @@ namespace ARKServerCreationTool
                 bool ok = await Services.Servers.ServerControl.For(targetServer).RestartToApplyAsync(TimeSpan.FromSeconds(60), controlProgress);
                 if (ok)
                 {
+                    AppServices.Coordinator.NotifyStarted(targetServer.ID);
                     targetServer.SnapshotRunningModVersions(AppServices.MetadataCache);
                     config.Save();
                 }
@@ -273,7 +282,7 @@ namespace ARKServerCreationTool
                     MessageBox.Show("Restart failed — check the server.");
                 }
             }
-            finally { btn_restartApply.IsEnabled = true; UpdateStatus(); }
+            finally { AppServices.Coordinator.MarkOperation(targetServer.ID, false); btn_restartApply.IsEnabled = true; UpdateStatus(); }
         }
     }
 }
