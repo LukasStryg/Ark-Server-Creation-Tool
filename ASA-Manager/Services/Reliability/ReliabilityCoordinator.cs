@@ -16,6 +16,7 @@ namespace ARKServerCreationTool.Services.Reliability
             public bool ShouldBeRunning;
             public bool OperationInProgress;
             public bool AutoRestartPaused;
+            public DateTime? StartedAt;   // when the server was last (re)started; gates the startup grace window
             public readonly List<DateTime> CrashTimes = new();
         }
 
@@ -43,7 +44,7 @@ namespace ARKServerCreationTool.Services.Reliability
 
         private State StateFor(int id) => _state.TryGetValue(id, out var st) ? st : (_state[id] = new State());
 
-        public void NotifyStarted(int serverId) { var s = StateFor(serverId); s.ShouldBeRunning = true; s.AutoRestartPaused = false; }
+        public void NotifyStarted(int serverId) { var s = StateFor(serverId); s.ShouldBeRunning = true; s.AutoRestartPaused = false; s.StartedAt = DateTime.Now; }
         public void NotifyStopping(int serverId) => StateFor(serverId).OperationInProgress = true;
         public void NotifyStopped(int serverId) { var s = StateFor(serverId); s.ShouldBeRunning = false; s.OperationInProgress = false; }
         public void MarkOperation(int serverId, bool inProgress) => StateFor(serverId).OperationInProgress = inProgress;
@@ -150,7 +151,8 @@ namespace ARKServerCreationTool.Services.Reliability
             foreach (var server in _config.Servers)
             {
                 var st = StateFor(server.ID);
-                bool crashed = st.ShouldBeRunning && !st.OperationInProgress && !st.AutoRestartPaused && !server.IsRunning;
+                bool crashed = CrashPolicy.LooksCrashed(st.ShouldBeRunning, st.OperationInProgress,
+                    st.AutoRestartPaused, server.IsRunning, now, st.StartedAt, _config.CrashStartupGraceSeconds);
                 if (!crashed) continue;
 
                 st.CrashTimes.Add(now);
@@ -169,6 +171,7 @@ namespace ARKServerCreationTool.Services.Reliability
                 {
                     await Task.Delay(TimeSpan.FromSeconds(Math.Max(0, _config.CrashRestartBackoffSeconds)));
                     server.ProcessManager.Start();
+                    st.StartedAt = DateTime.Now;   // fresh grace: the re-launched process isn't observable yet
                 }
                 finally { MarkOperation(server.ID, false); }
             }

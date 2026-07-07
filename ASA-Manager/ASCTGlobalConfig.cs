@@ -81,6 +81,10 @@ namespace ARKServerCreationTool
         public int CrashThresholdCount { get; set; } = 3;
         public int CrashWindowMinutes { get; set; } = 5;
         public int CrashRestartBackoffSeconds { get; set; } = 10;
+        // Grace period after a (re)start during which a not-yet-observable server is NOT counted as a
+        // crash — the launched ASA process hands off to the real server and reads as not-running for a
+        // few seconds. Keep this well under CrashWindowMinutes so a genuine crash-loop still gives up.
+        public int CrashStartupGraceSeconds { get; set; } = 60;
 
         public List<ASCTServerConfig> Servers = new List<ASCTServerConfig>();
 
