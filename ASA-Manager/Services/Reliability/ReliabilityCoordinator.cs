@@ -152,6 +152,9 @@ namespace ARKServerCreationTool.Services.Reliability
             foreach (var server in _config.Servers)
             {
                 var st = StateFor(server.ID);
+                // Cheap fast-path mirroring LooksCrashed's early-outs: skip the IsRunning process scan
+                // for servers that can't be crashes anyway (not meant to run, mid-operation, or paused).
+                if (!st.ShouldBeRunning || st.OperationInProgress || st.AutoRestartPaused) continue;
                 bool crashed = CrashPolicy.LooksCrashed(st.ShouldBeRunning, st.OperationInProgress,
                     st.AutoRestartPaused, server.IsRunning, now, st.StartedAt, _config.CrashStartupGraceSeconds);
                 if (!crashed) continue;
