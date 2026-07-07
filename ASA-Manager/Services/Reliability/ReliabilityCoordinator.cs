@@ -119,10 +119,11 @@ namespace ARKServerCreationTool.Services.Reliability
                 MarkOperation(server.ID, true);
                 try
                 {
-                    await ServerControl.For(server).RestartWithCountdownAsync(
+                    bool started = await ServerControl.For(server).RestartWithCountdownAsync(
                         steps, TimeSpan.FromSeconds(60), (d, ct) => Task.Delay(d, ct));
-                    NotifyStarted(server.ID);
-                    ReliabilityLog.Append($"Scheduled restart done: {server.Name}");
+                    var outcome = RestartOutcome.From(server.Name, started);
+                    if (outcome.MarkStarted) NotifyStarted(server.ID);   // a failed start is left for crash detection to retry
+                    ReliabilityLog.Append(outcome.LogLine);
                 }
                 finally { MarkOperation(server.ID, false); }
                 await Task.Delay(TimeSpan.FromSeconds(Math.Max(0, (int)_config.AutoStartStaggerTime)));
