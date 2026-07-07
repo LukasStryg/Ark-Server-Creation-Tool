@@ -37,5 +37,88 @@ namespace ARKServerCreationTool.Tests
             var crashes = new List<DateTime> { Now.AddMinutes(-30), Now.AddMinutes(-20), Now };
             Assert.Equal(CrashDecision.Restart, CrashPolicy.Decide(crashes, Now, 3, 5));
         }
+
+        // --- LooksCrashed: the startup-grace guard that stops a freshly (re)started server from
+        //     being mistaken for a crash before it is observable as running (its launcher hands off
+        //     to the real ASA process, so IsRunning is briefly false right after a restart). ---
+
+        private const int Grace = 60;
+
+        [Fact]
+        public void Within_startup_grace_a_not_running_server_is_not_a_crash()
+        {
+            // Regression: right after a restart the process is launched but not yet observable
+            // (IsRunning == false). Inside the grace window it must NOT be reported as a crash.
+            bool crashed = CrashPolicy.LooksCrashed(
+                shouldBeRunning: true, operationInProgress: false, autoRestartPaused: false,
+                isRunning: false, now: Now.AddSeconds(30), startedAt: Now, startupGraceSeconds: Grace);
+            Assert.False(crashed);
+        }
+
+        [Fact]
+        public void After_startup_grace_a_not_running_server_is_a_crash()
+        {
+            bool crashed = CrashPolicy.LooksCrashed(
+                true, false, false, isRunning: false,
+                now: Now.AddSeconds(Grace + 1), startedAt: Now, startupGraceSeconds: Grace);
+            Assert.True(crashed);
+        }
+
+        [Fact]
+        public void At_the_grace_boundary_a_not_running_server_is_a_crash()
+        {
+            // Grace is an exclusive upper bound: at exactly startedAt + grace the window is over.
+            bool crashed = CrashPolicy.LooksCrashed(
+                true, false, false, isRunning: false,
+                now: Now.AddSeconds(Grace), startedAt: Now, startupGraceSeconds: Grace);
+            Assert.True(crashed);
+        }
+
+        [Fact]
+        public void An_observably_running_server_is_never_a_crash()
+        {
+            bool crashed = CrashPolicy.LooksCrashed(
+                true, false, false, isRunning: true,
+                now: Now.AddSeconds(Grace + 100), startedAt: Now, startupGraceSeconds: Grace);
+            Assert.False(crashed);
+        }
+
+        [Fact]
+        public void An_operation_in_progress_is_not_a_crash()
+        {
+            bool crashed = CrashPolicy.LooksCrashed(
+                true, operationInProgress: true, autoRestartPaused: false, isRunning: false,
+                now: Now.AddSeconds(Grace + 1), startedAt: Now, startupGraceSeconds: Grace);
+            Assert.False(crashed);
+        }
+
+        [Fact]
+        public void A_paused_server_is_not_a_crash()
+        {
+            bool crashed = CrashPolicy.LooksCrashed(
+                true, false, autoRestartPaused: true, isRunning: false,
+                now: Now.AddSeconds(Grace + 1), startedAt: Now, startupGraceSeconds: Grace);
+            Assert.False(crashed);
+        }
+
+        [Fact]
+        public void A_server_not_meant_to_run_is_not_a_crash()
+        {
+            bool crashed = CrashPolicy.LooksCrashed(
+                shouldBeRunning: false, operationInProgress: false, autoRestartPaused: false,
+                isRunning: false, now: Now.AddSeconds(Grace + 1), startedAt: Now, startupGraceSeconds: Grace);
+            Assert.False(crashed);
+        }
+
+        [Fact]
+        public void With_no_start_timestamp_a_not_running_server_is_a_crash()
+        {
+            // No recorded start (e.g. a server already up when the app launched): with no grace
+            // window to honor, a server that should be running but isn't is a genuine crash.
+            bool crashed = CrashPolicy.LooksCrashed(
+                true, false, false, isRunning: false,
+                now: Now, startedAt: null, startupGraceSeconds: Grace);
+            Assert.True(crashed);
+        }
     }
 }
