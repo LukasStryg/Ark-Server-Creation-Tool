@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using WindowsFirewallHelper;
+using ARKServerCreationTool.Services.Reliability;
 
 namespace ARKServerCreationTool
 {
@@ -37,6 +38,11 @@ namespace ARKServerCreationTool
         }
 
         private Process gameProcess;
+
+        // Suppresses a duplicate launch while a just-started server is still booting and not yet
+        // observable as running (see LaunchGuard). Cleared on Stop() so a deliberate restart isn't blocked.
+        private const int RelaunchCooldownSeconds = 30;
+        private DateTime? lastLaunchAttempt;
 
         public int LockServer(string LockMessage)
         {
@@ -95,9 +101,10 @@ namespace ARKServerCreationTool
             try
             {
                 bool success = false;
-                if (IsRunning)
+                bool running = IsRunning;
+                if (!LaunchGuard.ShouldLaunch(running, DateTime.Now, lastLaunchAttempt, RelaunchCooldownSeconds))
                 {
-                    success = true; ;
+                    success = true;   // already running, or launched so recently it is probably still booting
                 }
                 else if (serverLocks.Count != 0)
                 {
@@ -105,6 +112,7 @@ namespace ARKServerCreationTool
                 }
                 else
                 {  
+                    lastLaunchAttempt = DateTime.Now;   // stamp the launch so a relaunch within the cooldown is suppressed
                     gameProcess = new Process();
                     ProcessStartInfo si = new ProcessStartInfo();
                     si.UseShellExecute = false;
@@ -160,11 +168,12 @@ namespace ARKServerCreationTool
             int maxTries = 5;
 
             while (IsRunning && tries++ <= maxTries)
-            {                
+            {
                 gameProcess.Kill();
                 Thread.Sleep(tries * 10);
             }
 
+            lastLaunchAttempt = null;   // deliberate stop clears the relaunch cooldown so a restart isn't blocked
             return IsRunning;
         }
     }
